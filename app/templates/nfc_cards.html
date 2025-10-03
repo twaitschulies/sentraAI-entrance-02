@@ -3,6 +3,50 @@
 {% block title %}NFC-Karten{% endblock %}
 {% block page_title %}NFC-Karten{% endblock %}
 
+{% block head %}
+<style>
+/* Modern PAN Masking Styles */
+.masked-pan {
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.pan-mask {
+    color: #6c757d;
+    opacity: 0.6;
+}
+
+.pan-separator {
+    color: #adb5bd;
+    margin: 0 2px;
+}
+
+.pan-visible {
+    color: #212529;
+    font-weight: 600;
+    background: linear-gradient(135deg, #fff3cd 0%, #fff9e6 100%);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 2px;
+}
+
+@media (max-width: 768px) {
+    .masked-pan {
+        font-size: 0.85rem;
+        padding: 3px 6px;
+    }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <div class="col-md-8">
@@ -31,20 +75,22 @@
                                 <tr>
                                     <td>{{ scan.timestamp }}</td>
                                     <td>
-                                        {# PCI DSS COMPLIANT: Always show masked PAN, never full PAN #}
-                                        {% if scan.get('pan_last4') %}
-                                            ****-****-****-{{ scan.pan_last4 }}
-                                        {% elif scan.get('pan') %}
-                                            {# Legacy support for old plaintext data #}
-                                            {% if scan.pan|length > 4 %}
-                                                ****-****-****-{{ scan.pan[-4:] }}
+                                        {# PCI DSS COMPLIANT: Modern masked PAN display #}
+                                        <span class="masked-pan">
+                                            {% if scan.get('pan_last4') %}
+                                                <span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-visible">{{ scan.pan_last4 }}</span>
+                                            {% elif scan.get('pan') %}
+                                                {# Legacy support for old plaintext data #}
+                                                {% if scan.pan|length > 4 %}
+                                                    <span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-visible">{{ scan.pan[-4:] }}</span>
+                                                {% else %}
+                                                    {{ scan.pan }}
+                                                {% endif %}
                                             {% else %}
-                                                {{ scan.pan }}
+                                                <span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span>
                                             {% endif %}
-                                        {% else %}
-                                            ****-****-****-****
-                                        {% endif %}
-                                        {% if scan.card_type %}<span class="badge bg-info">{{ scan.card_type }}</span>{% endif %}
+                                        </span>
+                                        {% if scan.card_type %}<span class="badge bg-info ms-2">{{ scan.card_type }}</span>{% endif %}
                                     </td>
                                     <td>{{ scan.expiry_date or '-' }}</td>
                                     <td>
@@ -200,21 +246,34 @@ function refreshScans(data) {
             statusBadge = '<span class="badge bg-danger">Ungültig</span>';
         }
 
-        // PCI DSS COMPLIANT: Display masked PAN
-        let maskedPan = '****-****-****-****';
+        // PCI DSS COMPLIANT: Display masked PAN with modern styling
+        let maskedPanHTML = '<span class="masked-pan">';
         if (scan.pan_last4) {
-            maskedPan = '****-****-****-' + scan.pan_last4;
+            maskedPanHTML += '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                            '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                            '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                            '<span class="pan-visible">' + scan.pan_last4 + '</span>';
         } else if (scan.pan && scan.pan.length > 4) {
             // Legacy support for old plaintext data
-            maskedPan = '****-****-****-' + scan.pan.slice(-4);
+            const last4 = scan.pan.slice(-4);
+            maskedPanHTML += '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                            '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                            '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                            '<span class="pan-visible">' + last4 + '</span>';
         } else if (scan.pan) {
-            maskedPan = scan.pan;
+            maskedPanHTML += scan.pan;
+        } else {
+            maskedPanHTML += '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                            '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                            '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                            '<span class="pan-mask">••••</span>';
         }
+        maskedPanHTML += '</span>';
 
         html += '<tr>' +
                 '<td>' + scan.timestamp + '</td>' +
-                '<td>' + maskedPan +
-                (scan.card_type ? ' <span class="badge bg-info">' + scan.card_type + '</span>' : '') + '</td>' +
+                '<td>' + maskedPanHTML +
+                (scan.card_type ? ' <span class="badge bg-info ms-2">' + scan.card_type + '</span>' : '') + '</td>' +
                 '<td>' + (scan.expiry_date || '-') + '</td>' +
                 '<td>' + statusBadge + '</td>' +
                 '</tr>';
