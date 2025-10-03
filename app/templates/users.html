@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+
+{% block title %}Benutzerverwaltung{% endblock %}
+
+{% block page_title %}Benutzerverwaltung{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Benutzer verwalten</h5>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                        <i class="fas fa-plus"></i> Neuer Benutzer
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if users %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Benutzername</th>
+                                        <th>Name</th>
+                                        <th>E-Mail</th>
+                                        <th>Telefon</th>
+                                        <th>Rolle</th>
+                                        <th>Erstellt am</th>
+                                        <th>Aktionen</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in users %}
+                                        <tr>
+                                            <td>{{ user.username }}</td>
+                                            <td>{{ user.name or '-' }}</td>
+                                            <td>{{ user.email or '-' }}</td>
+                                            <td>{{ user.phone or '-' }}</td>
+                                            <td>
+                                                {% if user.role == 'admin' %}
+                                                    <span class="badge bg-danger">Administrator</span>
+                                                {% elif user.role == 'manager' %}
+                                                    <span class="badge bg-warning">Manager</span>
+                                                {% else %}
+                                                    <span class="badge bg-info">Mitarbeiter</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if user.created_at %}
+                                                    {{ user.created_at|truncate(19, True, '') }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-warning"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#editUserModal"
+                                                        data-username="{{ user.username }}"
+                                                        data-role="{{ user.role }}"
+                                                        data-name="{{ user.name or '' }}"
+                                                        data-email="{{ user.email or '' }}"
+                                                        data-phone="{{ user.phone or '' }}">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <!-- Role-based access control - individual permissions removed -->
+                                                {% if user.username != session.username %}
+                                                    <button type="button" class="btn btn-sm btn-danger"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#deleteUserModal"
+                                                            data-username="{{ user.username }}">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            Keine Benutzer gefunden.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+<!-- Benutzer hinzufügen -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addUserModalLabel">Neuen Benutzer erstellen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <form action="{{ url_for('routes.add_user') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Benutzername *</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Vollständiger Name</label>
+                        <input type="text" class="form-control" id="name" name="name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">E-Mail-Adresse</label>
+                        <input type="email" class="form-control" id="email" name="email">
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Telefonnummer</label>
+                        <input type="tel" class="form-control" id="phone" name="phone">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Passwort *</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Rolle</label>
+                        <select class="form-select" id="role" name="role">
+                            <option value="employee">Mitarbeiter</option>
+                            <option value="manager">Manager</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Benutzer erstellen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Benutzer bearbeiten -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editUserModalLabel">Benutzer bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <form action="{{ url_for('routes.update_user') }}" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" id="edit-username" name="username">
+                    <div class="mb-3">
+                        <label for="edit-name" class="form-label">Vollständiger Name</label>
+                        <input type="text" class="form-control" id="edit-name" name="name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-email" class="form-label">E-Mail-Adresse</label>
+                        <input type="email" class="form-control" id="edit-email" name="email">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-phone" class="form-label">Telefonnummer</label>
+                        <input type="tel" class="form-control" id="edit-phone" name="phone">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-password" class="form-label">Neues Passwort (leer lassen, um nicht zu ändern)</label>
+                        <input type="password" class="form-control" id="edit-password" name="password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-role" class="form-label">Rolle</label>
+                        <select class="form-select" id="edit-role" name="role">
+                            <option value="employee">Mitarbeiter</option>
+                            <option value="manager">Manager</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Benutzer aktualisieren</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Benutzer löschen -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteUserModalLabel">Benutzer löschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <form action="{{ url_for('routes.delete_user') }}" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" id="delete-username" name="username">
+                    <p>Sind Sie sicher, dass Sie den Benutzer <strong id="delete-username-display"></strong> löschen möchten?</p>
+                    <p class="text-danger">Diese Aktion kann nicht rückgängig gemacht werden!</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-danger">Benutzer löschen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Permissions modal removed - using role-based access control instead -->
+<!-- <div class="modal fade" id="permissionsModal" tabindex="-1" aria-labelledby="permissionsModalLabel" aria-hidden="true"
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="permissionsModalLabel">Berechtigungen verwalten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <form action="{{ url_for('routes.update_user_permissions') }}" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" id="perm-username" name="username">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Wählen Sie die spezifischen Seitenberechtungen für diesen Benutzer aus.
+                        Diese überschreiben die Standard-Rollenberechtigungen.
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Grundlegende Bereiche</h6>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="perm-dashboard" name="permissions[]" value="dashboard">
+                                <label class="form-check-label" for="perm-dashboard">
+                                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="perm-users" name="permissions[]" value="users">
+                                <label class="form-check-label" for="perm-users">
+                                    <i class="fas fa-users"></i> Benutzerverwaltung
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="perm-settings" name="permissions[]" value="settings">
+                                <label class="form-check-label" for="perm-settings">
+                                    <i class="fas fa-cog"></i> Systemeinstellungen
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="perm-logs" name="permissions[]" value="logs">
+                                <label class="form-check-label" for="perm-logs">
+                                    <i class="fas fa-file-alt"></i> Protokolle
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="perm-door-control" name="permissions[]" value="door_control">
+                                <label class="form-check-label" for="perm-door-control">
+                                    <i class="fas fa-door-open"></i> Türsteuerung
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Erweiterte Bereiche</h6>
+                            {% if barcode_visibility_enabled %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="perm-barcodes" name="permissions[]" value="barcodes">
+                                <label class="form-check-label" for="perm-barcodes">
+                                    <i class="fas fa-qrcode"></i> Barcode-Verwaltung
+                                </label>
+                            </div>
+                            {% endif %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="perm-nfc-cards" name="permissions[]" value="nfc_cards">
+                                <label class="form-check-label" for="perm-nfc-cards">
+                                    <i class="fas fa-credit-card"></i> NFC-Karten
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="perm-opening-hours" name="permissions[]" value="opening_hours">
+                                <label class="form-check-label" for="perm-opening-hours">
+                                    <i class="fas fa-clock"></i> Öffnungszeiten
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="perm-whitelabel" name="permissions[]" value="whitelabel">
+                                <label class="form-check-label" for="perm-whitelabel">
+                                    <i class="fas fa-palette"></i> Whitelabel-Einstellungen
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="perm-system-config" name="permissions[]" value="system_config">
+                                <label class="form-check-label" for="perm-system-config">
+                                    <i class="fas fa-server"></i> Systemkonfiguration
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Berechtigungen speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div> -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Edit user modal
+        const editUserModal = document.getElementById('editUserModal');
+        if (editUserModal) {
+            editUserModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const username = button.getAttribute('data-username');
+                const role = button.getAttribute('data-role');
+                const name = button.getAttribute('data-name') || '';
+                const email = button.getAttribute('data-email') || '';
+                const phone = button.getAttribute('data-phone') || '';
+
+                const usernameInput = editUserModal.querySelector('#edit-username');
+                const nameInput = editUserModal.querySelector('#edit-name');
+                const emailInput = editUserModal.querySelector('#edit-email');
+                const phoneInput = editUserModal.querySelector('#edit-phone');
+                const roleSelect = editUserModal.querySelector('#edit-role');
+
+                usernameInput.value = username;
+                nameInput.value = name;
+                emailInput.value = email;
+                phoneInput.value = phone;
+                roleSelect.value = role;
+            });
+        }
+        
+        // Delete user modal
+        const deleteUserModal = document.getElementById('deleteUserModal');
+        if (deleteUserModal) {
+            deleteUserModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const username = button.getAttribute('data-username');
+
+                const usernameInput = deleteUserModal.querySelector('#delete-username');
+                const usernameDisplay = deleteUserModal.querySelector('#delete-username-display');
+
+                usernameInput.value = username;
+                usernameDisplay.textContent = username;
+            });
+        }
+
+        // Permissions modal removed - using role-based access control
+        /* const permissionsModal = document.getElementById('permissionsModal');
+        if (permissionsModal) {
+            permissionsModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const username = button.getAttribute('data-username');
+
+                const usernameInput = permissionsModal.querySelector('#perm-username');
+                usernameInput.value = username;
+
+                // Load current permissions for the user
+                loadUserPermissions(username);
+            });
+        } */
+    });
+
+    // Function removed - using role-based access control
+    /* function loadUserPermissions(username) {
+        fetch(`{{ url_for('routes.get_user_permissions') }}?username=${encodeURIComponent(username)}`)
+            .then(response => response.json())
+            .then(permissions => {
+                // Clear all checkboxes first
+                const checkboxes = document.querySelectorAll('#permissionsModal input[type="checkbox"]');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+
+                // Check boxes for permissions that are enabled
+                for (const [permission, enabled] of Object.entries(permissions)) {
+                    // Replace all underscores with hyphens for the ID
+                    const checkboxId = `perm-${permission.replace(/_/g, '-')}`;
+                    const checkbox = document.querySelector(`#${checkboxId}`);
+                    if (checkbox && enabled) {
+                        checkbox.checked = true;
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error loading permissions:', error);
+                // Fallback: check all boxes if we can't load permissions
+                const checkboxes = document.querySelectorAll('#permissionsModal input[type="checkbox"]');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+            });
+    } */
+</script>
+{% endblock %} 

@@ -1,0 +1,251 @@
+<!-- Modal Content für NFC-Karten-Details -->
+<div class="row">
+    <div class="col-md-6">
+        <h6 class="text-muted">Karten-Identifikation</h6>
+        <div class="mb-3">
+            <strong>Karten-Hash:</strong><br>
+            <code class="small">{{ card.card_hash }}</code>
+        </div>
+        
+        <div class="mb-3">
+            <strong>Kartentyp:</strong><br>
+            <span class="badge bg-secondary">{{ card.card_type }}</span>
+        </div>
+        
+        {% if card.partial_pan %}
+        <div class="mb-3">
+            <strong>Teilweise PAN:</strong><br>
+            <code>{{ card.partial_pan }}</code>
+        </div>
+        {% endif %}
+        
+        {% if card.bank_identifier %}
+        <div class="mb-3">
+            <strong>Bank/Institution:</strong><br>
+            <span class="fst-italic">{{ card.bank_identifier }}</span>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-6">
+        <h6 class="text-muted">Statistiken & Status</h6>
+        <div class="mb-3">
+            <strong>Vertrauensgrad:</strong><br>
+            {% set confidence_class = 'text-success' if card.confidence_score > 0.7 else 'text-warning' if card.confidence_score > 0.4 else 'text-danger' %}
+            <span class="{{ confidence_class }} fw-bold">{{ "%.1f" | format(card.confidence_score * 100) }}%</span>
+        </div>
+        
+        <div class="mb-3">
+            <strong>Scan-Statistiken:</strong><br>
+            <span class="badge bg-primary">{{ card.scan_count }}× gescannt</span>
+            <span class="badge bg-info">{{ card.raw_data_size }} Bytes</span>
+        </div>
+        
+        <div class="mb-3">
+            <strong>Status:</strong><br>
+            {% if card.status == 'approved' %}
+                <span class="badge bg-success fs-6">✓ Genehmigt</span>
+            {% elif card.status == 'rejected' %}
+                <span class="badge bg-danger fs-6">✗ Abgelehnt</span>
+            {% else %}
+                <span class="badge bg-warning fs-6">? Unbekannt</span>
+            {% endif %}
+        </div>
+        
+        <div class="mb-3">
+            <strong>Zeitstempel:</strong><br>
+            <small class="text-muted">
+                Erste Scan: {{ card.scan_timestamp[:16] if card.scan_timestamp else 'N/A' }}<br>
+                Letzter Scan: {{ card.last_seen[:16] if card.last_seen else 'N/A' }}
+            </small>
+        </div>
+    </div>
+</div>
+
+{% if card.admin_notes %}
+<div class="alert alert-info">
+    <strong>Admin-Notizen:</strong> {{ card.admin_notes }}
+</div>
+{% endif %}
+
+<!-- APDU-Kommandos (kompakte Ansicht) -->
+{% if card.apdu_commands %}
+<hr>
+<h6 class="text-muted">APDU-Kommando-Historie ({{ card.apdu_commands|length }} Kommandos)</h6>
+<div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+    <table class="table table-sm">
+        <thead class="table-light">
+            <tr>
+                <th>Kommando</th>
+                <th>Status</th>
+                <th>APDU</th>
+                <th>Response</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for apdu in card.apdu_commands %}
+            <tr class="{{ 'table-success' if apdu.success else 'table-danger' }}">
+                <td>
+                    <small>{{ apdu.command_name }}</small>
+                </td>
+                <td>
+                    {% if apdu.success %}
+                        <span class="badge bg-success">OK</span>
+                    {% else %}
+                        <span class="badge bg-danger">Fehler</span>
+                    {% endif %}
+                    <br><small class="text-muted">{{ apdu.status_word }}</small>
+                </td>
+                <td>
+                    <code class="small" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;">
+                        {{ apdu.apdu_hex[:30] if apdu.apdu_hex else 'N/A' }}{% if apdu.apdu_hex and apdu.apdu_hex|length > 30 %}...{% endif %}
+                    </code>
+                </td>
+                <td>
+                    <code class="small" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;">
+                        {{ apdu.response_hex[:30] if apdu.response_hex else 'Keine Response' }}{% if apdu.response_hex and apdu.response_hex|length > 30 %}...{% endif %}
+                    </code>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Rohdaten-Extrakte -->
+{% if card.raw_extracts %}
+<hr>
+<h6 class="text-muted">Rohdaten-Extrakte ({{ card.raw_extracts|length }} Extrakte)</h6>
+<div class="accordion" id="rawExtractsAccordion">
+    {% for extract in card.raw_extracts %}
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="extract{{ loop.index }}Heading">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                    data-bs-target="#extract{{ loop.index }}Collapse" aria-expanded="false">
+                <strong>{{ extract.extract_type.upper() }} Daten</strong>
+                <small class="text-muted ms-2">
+                    ({{ extract.extraction_method }}, {{ "%.0f" | format(extract.quality_score * 100) }}% Qualität)
+                </small>
+            </button>
+        </h2>
+        <div id="extract{{ loop.index }}Collapse" class="accordion-collapse collapse" 
+             data-bs-parent="#rawExtractsAccordion">
+            <div class="accordion-body">
+                <div class="mb-2">
+                    <strong>Hex-Rohdaten:</strong>
+                    <button class="btn btn-sm btn-outline-primary float-end" 
+                            onclick="copyToClipboard('{{ extract.raw_hex_data }}')">
+                        <i class="fas fa-copy"></i> Kopieren
+                    </button>
+                </div>
+                <div class="bg-dark text-light p-2 rounded mb-2" style="font-family: monospace; font-size: 0.8rem; max-height: 150px; overflow-y: auto;">
+                    {{ extract.raw_hex_data }}
+                </div>
+                
+                {% if extract.decoded_data %}
+                <div class="mb-2">
+                    <strong>Dekodierte Daten:</strong>
+                </div>
+                <div class="alert alert-light py-2">
+                    {{ extract.decoded_data }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Action Buttons -->
+<hr>
+<div class="d-flex justify-content-between">
+    <div>
+        {% if card.status == 'unknown' %}
+        <button class="btn btn-success" onclick="quickCardActionFromModal({{ card.id }}, 'approve')">
+            <i class="fas fa-check me-1"></i>Genehmigen
+        </button>
+        <button class="btn btn-danger" onclick="quickCardActionFromModal({{ card.id }}, 'reject')">
+            <i class="fas fa-times me-1"></i>Ablehnen
+        </button>
+        {% endif %}
+    </div>
+    <div>
+        <button class="btn btn-outline-secondary" onclick="exportModalCardData({{ card.id }})">
+            <i class="fas fa-download me-1"></i>Exportieren
+        </button>
+    </div>
+</div>
+
+<script>
+function copyToClipboard(text) {
+    if (!navigator.clipboard) {
+        // Fallback für ältere Browser
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            alert('In Zwischenablage kopiert!');
+        } catch (err) {
+            alert('Fehler beim Kopieren. Bitte manuell markieren und kopieren.');
+        }
+        document.body.removeChild(textArea);
+        return;
+    }
+    
+    navigator.clipboard.writeText(text).then(() => {
+        // Temporäres Feedback
+        const event_target = event.target;
+        const originalText = event_target.innerHTML;
+        event_target.innerHTML = '<i class="fas fa-check"></i> Kopiert!';
+        event_target.classList.add('btn-success');
+        
+        setTimeout(() => {
+            event_target.innerHTML = originalText;
+            event_target.classList.remove('btn-success');
+        }, 2000);
+    }).catch(err => {
+        alert('Fehler beim Kopieren der Daten.');
+        console.log('Daten zum manuellen Kopieren:', text);
+    });
+}
+
+function quickCardActionFromModal(cardId, action) {
+    // Schließe das Details-Modal
+    const detailsModal = bootstrap.Modal.getInstance(document.getElementById('cardDetailsModal'));
+    detailsModal.hide();
+    
+    // Öffne das Action-Modal
+    setTimeout(() => {
+        quickCardAction(cardId, action);
+    }, 300);
+}
+
+function exportModalCardData(cardId) {
+    const cardData = {
+        id: {{ card.id }},
+        card_hash: "{{ card.card_hash }}",
+        card_type: "{{ card.card_type }}",
+        partial_pan: "{{ card.partial_pan or '' }}",
+        bank_identifier: "{{ card.bank_identifier or '' }}",
+        confidence_score: {{ card.confidence_score }},
+        scan_count: {{ card.scan_count }},
+        status: "{{ card.status }}",
+        admin_notes: "{{ card.admin_notes or '' }}",
+        export_timestamp: new Date().toISOString(),
+        export_source: "modal_details"
+    };
+    
+    const dataStr = JSON.stringify(cardData, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `nfc_card_${cardData.id}_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+}
+</script> 

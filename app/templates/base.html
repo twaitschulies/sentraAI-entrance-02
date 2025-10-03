@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <title>{% block title %}{% endblock %} - Zugangssystem</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Kaiadmin CSS (Add your custom styles after) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/kaiadmin.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Favicon -->
+    {% if whitelabel_manager and whitelabel_manager.get_favicon_url() %}
+    <link rel="icon" href="{{ whitelabel_manager.get_favicon_url() }}" type="image/x-icon">
+    {% else %}
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/x-icon">
+    {% endif %}
+
+    <!-- White-label Custom CSS -->
+    {% if whitelabel_manager %}
+    {{ whitelabel_manager.get_css_variables()|safe }}
+    {% endif %}
+
+    <style>
+        .sidebar-toggle-btn {
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin-right: 10px;
+        }
+        .sidebar-collapsed .sidebar {
+            width: 70px;
+            overflow: visible;
+        }
+        .sidebar-collapsed .main-content {
+            margin-left: 70px;
+        }
+        .sidebar-collapsed .sidebar .logo-text,
+        .sidebar-collapsed .sidebar .nav-link span {
+            display: none;
+        }
+        .sidebar-collapsed .sidebar .nav-item:hover .nav-link span {
+            display: block;
+            position: absolute;
+            left: 100%;
+            top: 0;
+            min-width: 150px;
+            background: #333;
+            padding: 10px 15px;
+            border-radius: 0 4px 4px 0;
+            z-index: 1000;
+        }
+        .logo-img {
+            max-width: 40px;
+            height: auto;
+            margin-right: 10px;
+        }
+        .sidebar-collapsed .sidebar .logo-img {
+            max-width: 35px;
+        }
+        .sidebar-clock-widget {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .current-time {
+            color: #fff;
+            font-family: 'Inter', monospace;
+            font-weight: 600;
+        }
+        .current-date {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.85rem;
+        }
+        .sidebar-collapsed .sidebar-clock-widget {
+            display: none;
+        }
+        .sidebar-collapsed .sidebar-clock-widget.mini {
+            display: block;
+            padding: 8px 4px;
+            text-align: center;
+        }
+        .sidebar-collapsed .sidebar-clock-widget.mini .current-time {
+            font-size: 0.7rem;
+            margin-bottom: 2px;
+        }
+        .sidebar-collapsed .sidebar-clock-widget.mini .current-date {
+            display: none;
+        }
+
+        /* Modern Navigation Menu Styling - Whitelabel Compatible */
+        .sidebar {
+            background: var(--sidebar-bg-color, linear-gradient(180deg, #2c3e50 0%, #34495e 100%));
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Match topbar colors to sidebar */
+        .topbar {
+            background: var(--sidebar-bg-color, linear-gradient(180deg, #2c3e50 0%, #34495e 100%)) !important;
+            color: white;
+        }
+        .sidebar .nav {
+            padding: 0 12px;
+        }
+        .sidebar .nav-item {
+            margin-bottom: 4px;
+        }
+        .sidebar .nav-link {
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 0;
+            color: rgba(255, 255, 255, 0.85);
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .sidebar .nav-link:hover {
+            background: var(--primary-color, linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(155, 89, 182, 0.2)));
+            color: #fff;
+            transform: translateX(3px);
+            box-shadow: 0 4px 15px var(--primary-color, rgba(52, 152, 219, 0.3));
+        }
+        .sidebar .nav-item.active .nav-link {
+            background: var(--primary-color, linear-gradient(135deg, #3498db, #9b59b6));
+            color: #fff;
+            box-shadow: 0 4px 20px var(--primary-color, rgba(52, 152, 219, 0.4));
+            font-weight: 600;
+        }
+        .sidebar .nav-link i {
+            width: 20px;
+            text-align: center;
+            margin-right: 12px;
+            font-size: 1.1rem;
+            transition: transform 0.3s ease;
+        }
+        .sidebar .nav-link:hover i {
+            transform: scale(1.1);
+        }
+        .sidebar .nav-item.active .nav-link i {
+            animation: pulse 2s infinite;
+        }
+
+        /* Active indicator */
+        .sidebar .nav-item.active .nav-link::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 60%;
+            background: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.7));
+            border-radius: 0 2px 2px 0;
+        }
+
+        /* Sidebar header improvements - Whitelabel Compatible */
+        .sidebar-header {
+            background: var(--header-bg-color, linear-gradient(135deg, #2c3e50, #3498db));
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .sidebar-header .logo {
+            color: #fff;
+            font-weight: 600;
+            text-decoration: none;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        .sidebar-header .logo:hover {
+            color: #ecf0f1;
+            transform: scale(1.02);
+        }
+        .sidebar-toggler {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: rgba(255, 255, 255, 0.8);
+            padding: 8px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+        .sidebar-toggler:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            transform: rotate(90deg);
+        }
+
+        /* Pulse animation for active items */
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        /* Collapsed sidebar adjustments */
+        .sidebar-collapsed .sidebar .nav-link {
+            padding: 12px 8px;
+            text-align: center;
+        }
+        .sidebar-collapsed .sidebar .nav-link i {
+            margin-right: 0;
+            font-size: 1.3rem;
+        }
+
+        /* Tooltip for collapsed sidebar */
+        .sidebar-collapsed .sidebar .nav-item {
+            position: relative;
+        }
+        .sidebar-collapsed .sidebar .nav-item:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #333;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            white-space: nowrap;
+            z-index: 1000;
+            font-size: 0.9rem;
+            margin-left: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        .sidebar-collapsed .sidebar .nav-item:hover::before {
+            content: '';
+            position: absolute;
+            left: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 6px solid transparent;
+            border-right-color: #333;
+            z-index: 1001;
+            margin-left: 4px;
+        }
+
+        /* Cards - Coming Soon Styling */
+        .nav-item.disabled .nav-link-disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            color: rgba(255, 255, 255, 0.5) !important;
+        }
+
+        .nav-item.disabled .nav-link-disabled:hover {
+            background: rgba(255, 255, 255, 0.05) !important;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .coming-soon-badge {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #ffd700, #ffa500);
+            color: #333;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            animation: pulse-badge 2s infinite;
+            white-space: nowrap;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* Adjust nav-item position for coming soon badge */
+        .nav-item.disabled {
+            position: relative;
+        }
+
+        @keyframes pulse-badge {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .sidebar-collapsed .coming-soon-badge {
+            display: none;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="{% if session.get('sidebar_collapsed') %}sidebar-collapsed{% endif %}">
+    <div class="wrapper">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <a href="{{ url_for('routes.dashboard') }}" class="logo d-flex align-items-center">
+                    {% if whitelabel_manager and whitelabel_manager.get_logo_url() %}
+                    <img src="{{ whitelabel_manager.get_logo_url() }}" alt="Logo" class="logo-img">
+                    {% else %}
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Zugangssystem Logo" class="logo-img">
+                    {% endif %}
+                    <span class="logo-text">
+                        {% if whitelabel_manager and whitelabel_manager.config.company_name %}
+                            {{ whitelabel_manager.config.company_name }}
+                        {% else %}
+                            Zugangssystem
+                        {% endif %}
+                    </span>
+                </a>
+            </div>
+            <div class="sidebar-content">
+                <!-- Real-time Clock and Date Display -->
+                <div class="sidebar-clock-widget p-3 mb-3 border-bottom">
+                    <div class="clock-display text-center">
+                        <div class="current-time h5 mb-1 font-weight-bold" id="current-time">--:--:--</div>
+                        <div class="current-date text-muted small" id="current-date">Loading...</div>
+                    </div>
+                </div>
+
+                <ul class="nav">
+                    <li class="nav-item{% if request.endpoint == 'routes.dashboard' %} active{% endif %}" data-tooltip="Dashboard">
+                        <a href="{{ url_for('routes.dashboard') }}" class="nav-link">
+                            <i class="fas fa-home"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    {% if barcode_visibility_enabled %}
+                    <li class="nav-item{% if request.endpoint == 'routes.barcodes' %} active{% endif %}" data-tooltip="Barcodes">
+                        <a href="{{ url_for('routes.barcodes') }}" class="nav-link">
+                            <i class="fas fa-qrcode"></i>
+                            <span>Barcodes</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item{% if request.endpoint == 'routes.nfc_cards' %} active{% endif %}" data-tooltip="NFC-Management">
+                        <a href="{{ url_for('routes.nfc_cards') }}" class="nav-link">
+                            <i class="fas fa-credit-card"></i>
+                            <span>NFC-Management</span>
+                        </a>
+                    </li>
+                    <li class="nav-item disabled" data-tooltip="NFC Fehler-Logs (Coming Soon)">
+                        <a href="#" class="nav-link nav-link-disabled" onclick="showComingSoonModal(event)">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>NFC Fehler-Logs</span>
+                            <small class="coming-soon-badge">Coming Soon</small>
+                        </a>
+                    </li>
+                    <li class="nav-item{% if request.endpoint == 'routes.webhook_logs' %} active{% endif %}" data-tooltip="Webhook-Logs">
+                        <a href="{{ url_for('routes.webhook_logs') }}" class="nav-link">
+                            <i class="fas fa-satellite-dish"></i>
+                            <span>Webhook-Logs</span>
+                        </a>
+                    </li>
+                    <li class="nav-item{% if request.endpoint == 'routes.logs' %} active{% endif %}" data-tooltip="Protokolle">
+                        <a href="{{ url_for('routes.logs') }}" class="nav-link">
+                            <i class="fas fa-list-alt"></i>
+                            <span>Protokolle</span>
+                        </a>
+                    </li>
+                    {% if session.role == 'admin' or session.username in ['sentrasupport', 'kassen24'] %}
+                    <li class="nav-item{% if request.endpoint == 'routes.users' %} active{% endif %}" data-tooltip="Benutzerverwaltung">
+                        <a href="{{ url_for('routes.users') }}" class="nav-link">
+                            <i class="fas fa-users"></i>
+                            <span>Benutzerverwaltung</span>
+                        </a>
+                    </li>
+                    <li class="nav-item disabled" data-tooltip="Karten (Coming Soon)">
+                        <a href="#" class="nav-link nav-link-disabled" onclick="showComingSoonModal(event)">
+                            <i class="fas fa-id-card"></i>
+                            <span>Karten</span>
+                            <small class="coming-soon-badge">Coming Soon</small>
+                        </a>
+                    </li>
+                    <li class="nav-item{% if request.endpoint == 'routes.opening_hours' %} active{% endif %}" data-tooltip="Öffnungszeiten">
+                        <a href="{{ url_for('routes.opening_hours') }}" class="nav-link">
+                            <i class="fas fa-clock"></i>
+                            <span>Öffnungszeiten</span>
+                        </a>
+                    </li>
+                    {% if session.username in ['sentrasupport', 'kassen24'] %}
+                    <li class="nav-item{% if request.endpoint == 'routes.whitelabel' %} active{% endif %}" data-tooltip="White-Label">
+                        <a href="{{ url_for('routes.whitelabel') }}" class="nav-link">
+                            <i class="fas fa-palette"></i>
+                            <span>White-Label</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+                    {% if session.role == 'admin' or session.username in ['sentrasupport', 'kassen24'] %}
+                    <li class="nav-item{% if request.endpoint == 'routes.settings' %} active{% endif %}" data-tooltip="Einstellungen">
+                        <a href="{{ url_for('routes.settings') }}" class="nav-link">
+                            <i class="fas fa-cog"></i>
+                            <span>Einstellungen</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Topbar -->
+            <div class="topbar">
+                <div class="d-flex align-items-center">
+                    <div class="sidebar-toggle-btn" id="toggle-sidebar">
+                        <i class="fas fa-bars"></i>
+                    </div>
+                    <div class="page-title">
+                        {% block page_title %}Zugangssystem{% endblock %}
+                    </div>
+                </div>
+                <div class="topbar-actions">
+                    {% if session.user %}
+                    <!-- IP Address Display -->
+                    <div class="d-none d-md-flex align-items-center me-3">
+                        <a href="{{ url_for('routes.settings') }}#network-tab" class="text-decoration-none text-white" id="ip-address-link" title="Zur Netzwerk-Konfiguration" style="opacity: 0.9;">
+                            <i class="fas fa-network-wired me-1"></i>
+                            <span id="current-ip-address" style="font-weight: 500;">Lade IP...</span>
+                        </a>
+                    </div>
+
+                    <div class="dropdown">
+                        <a class="dropdown-toggle d-flex align-items-center" href="#" role="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="avatar-sm bg-primary rounded-circle me-2 d-flex align-items-center justify-content-center">
+                                <i class="fas fa-user text-white"></i>
+                            </div>
+                            <span>{{ session.user.username if session.user else 'Benutzer' }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            {% if session.role == 'admin' or session.username in ['sentrasupport', 'kassen24'] %}
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('routes.settings') }}">
+                                    <i class="fas fa-cog me-2"></i> Einstellungen
+                                </a>
+                            </li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('routes.logout') }}">
+                                    <i class="fas fa-sign-out-alt me-2"></i> Abmelden
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Content -->
+            <div class="content-wrapper">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, msg in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show">
+                                {{ msg }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                {% block content %}{% endblock %}
+            </div>
+            
+            <!-- Footer -->
+            <footer class="footer">
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-md-6">
+                            SentraAI &copy; 2025
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Kaiadmin JS and custom scripts -->
+    <script src="{{ url_for('static', filename='js/kaiadmin.js') }}"></script>
+    
+    <script>
+        // Auto-dismiss flash messages
+        document.addEventListener('DOMContentLoaded', function() {
+            const flashMessages = document.querySelectorAll('.alert-dismissible');
+            flashMessages.forEach(function(flash) {
+                // Auto dismiss after 5 seconds
+                setTimeout(() => {
+                    const closeBtn = flash.querySelector('.btn-close');
+                    if(closeBtn) closeBtn.click();
+                }, 5000);
+            });
+            
+            // Toggle sidebar functionality
+            const toggleBtn = document.getElementById('toggle-sidebar');
+
+            function toggleSidebar() {
+                document.body.classList.toggle('sidebar-collapsed');
+
+                // Save state to session via fetch API
+                fetch('/toggle_sidebar', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        collapsed: document.body.classList.contains('sidebar-collapsed')
+                    })
+                });
+            }
+
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', toggleSidebar);
+            }
+
+            // Load current IP address
+            loadCurrentIpAddress();
+
+            // Update IP address every 30 seconds
+            setInterval(loadCurrentIpAddress, 30000);
+
+            // Initialize and update real-time clock
+            updateClock();
+            setInterval(updateClock, 1000);
+        });
+
+        // Function to load and display current IP address
+        function loadCurrentIpAddress() {
+            fetch('/api/current_ip')
+                .then(response => response.json())
+                .then(data => {
+                    const ipElement = document.getElementById('current-ip-address');
+                    if (ipElement && data.ip) {
+                        ipElement.textContent = data.ip;
+
+                        // Update link to settings with network tab
+                        const linkElement = document.getElementById('ip-address-link');
+                        if (linkElement) {
+                            linkElement.href = "{{ url_for('routes.settings') }}#network-tab";
+                            linkElement.onclick = function() {
+                                // If already on settings page, just switch to network tab
+                                if (window.location.pathname.includes('settings')) {
+                                    setTimeout(() => {
+                                        const networkTab = document.getElementById('network-tab');
+                                        if (networkTab) {
+                                            networkTab.click();
+                                        }
+                                    }, 100);
+                                }
+                            };
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Failed to load IP address:', error);
+                    const ipElement = document.getElementById('current-ip-address');
+                    if (ipElement) {
+                        ipElement.textContent = 'IP nicht verfügbar';
+                    }
+                });
+        }
+
+        // Function to update real-time clock display
+        function updateClock() {
+            const now = new Date();
+
+            // Format time as HH:MM:SS
+            const timeString = now.toLocaleTimeString('de-DE', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+
+            // Format date as Weekday, DD.MM.YYYY
+            const dateString = now.toLocaleDateString('de-DE', {
+                weekday: 'long',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+
+            // Update DOM elements
+            const timeElement = document.getElementById('current-time');
+            const dateElement = document.getElementById('current-date');
+
+            if (timeElement) {
+                timeElement.textContent = timeString;
+            }
+
+            if (dateElement) {
+                dateElement.textContent = dateString;
+            }
+        }
+
+        // Show Coming Soon modal for Cards
+        function showComingSoonModal(event) {
+            event.preventDefault();
+
+            // Create modal HTML
+            const modalHTML = `
+                <div class="modal fade" id="comingSoonModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-warning text-dark">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-id-card me-2"></i>Karten - Coming Soon
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body text-center">
+                                <div class="mb-4">
+                                    <i class="fas fa-tools fa-4x text-warning"></i>
+                                </div>
+                                <h6 class="text-primary">Feature in Entwicklung</h6>
+                                <p class="text-muted">
+                                    Das Karten-Management wird in einem zukünftigen Update verfügbar sein.
+                                    Diese Funktion wird erweiterte Verwaltung von spezifischen Zugriffsberechtigungen ermöglichen.
+                                </p>
+                                <div class="alert alert-info">
+                                    <small>
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        <strong>Geplante Features:</strong>
+                                        <ul class="list-unstyled mt-2 mb-0">
+                                            <li>• Individuelle Mitarbeiterkarten-Verwaltung</li>
+                                            <li>• Zeitbasierte Zugangsberechtigungen</li>
+                                            <li>• Gruppenverwaltung und Rollen</li>
+                                            <li>• Detaillierte Zugriffsprotokollierung</li>
+                                        </ul>
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                    Verstanden
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if any
+            const existingModal = document.getElementById('comingSoonModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('comingSoonModal'));
+            modal.show();
+
+            // Clean up modal after it's hidden
+            document.getElementById('comingSoonModal').addEventListener('hidden.bs.modal', function () {
+                this.remove();
+            });
+        }
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 

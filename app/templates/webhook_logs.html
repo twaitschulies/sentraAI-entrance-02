@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+
+{% block title %}Webhook-Logs{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-satellite-dish"></i> Webhook-Logs</h2>
+            <p class="text-muted">Übersicht aller Webhook-Anfragen mit Statistiken und Filtern</p>
+        </div>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Statistiken - Professional Design -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-3 border-end">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="rounded-circle bg-light p-2">
+                                <i class="fas fa-satellite-dish text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <small class="text-muted text-uppercase">Gesamt</small>
+                            <h5 class="mb-0">{{ stats.total_requests }}</h5>
+                            <small class="text-muted">Letzten {{ hours_back }}h</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3 border-end">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="rounded-circle bg-light p-2">
+                                <i class="fas fa-check-circle text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <small class="text-muted text-uppercase">Erfolgreich</small>
+                            <h5 class="mb-0">{{ stats.successful_requests }}</h5>
+                            <small class="text-success">{{ stats.success_rate }}% Erfolgsrate</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3 border-end">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="rounded-circle bg-light p-2">
+                                <i class="fas fa-exclamation-triangle text-danger"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <small class="text-muted text-uppercase">Fehler</small>
+                            <h5 class="mb-0">{{ stats.failed_requests }}</h5>
+                            <small class="text-danger">Fehlgeschlagen</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="rounded-circle bg-light p-2">
+                                <i class="fas fa-clock text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <small class="text-muted text-uppercase">Antwortzeit</small>
+                            <h5 class="mb-0">{{ "%.0f"|format(stats.avg_response_time_ms|default(0)) }}ms</h5>
+                            <small class="text-muted">Durchschnitt</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter und Aktionen - Compact Professional Design -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="GET" class="row align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small text-muted">Typ</label>
+                    <select name="type" class="form-select form-select-sm">
+                        <option value="" {% if not current_filter %}selected{% endif %}>Alle Typen</option>
+                        <option value="nfc" {% if current_filter == 'nfc' %}selected{% endif %}>NFC</option>
+                        <option value="barcode" {% if current_filter == 'barcode' %}selected{% endif %}>Barcode</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted">Zeitraum</label>
+                    <select name="hours" class="form-select form-select-sm">
+                        <option value="1" {% if hours_back == 1 %}selected{% endif %}>Letzte Stunde</option>
+                        <option value="6" {% if hours_back == 6 %}selected{% endif %}>Letzten 6h</option>
+                        <option value="24" {% if hours_back == 24 %}selected{% endif %}>Letzten 24h</option>
+                        <option value="168" {% if hours_back == 168 %}selected{% endif %}>Letzte Woche</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">Anzahl</label>
+                    <select name="limit" class="form-select form-select-sm">
+                        <option value="25" {% if limit == 25 %}selected{% endif %}>25</option>
+                        <option value="50" {% if limit == 50 %}selected{% endif %}>50</option>
+                        <option value="100" {% if limit == 100 %}selected{% endif %}>100</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <div class="btn-group" role="group">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fas fa-filter me-1"></i>Filtern
+                        </button>
+                        <a href="{{ url_for('routes.webhook_logs_export', hours=hours_back) }}"
+                           class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-download me-1"></i>CSV Export
+                        </a>
+                        {% if session.role == 'admin' %}
+                        <button type="button" class="btn btn-outline-danger btn-sm"
+                                data-bs-toggle="modal" data-bs-target="#cleanupModal">
+                            <i class="fas fa-trash me-1"></i>Bereinigen
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Webhook-Logs Tabelle -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-list"></i> 
+                Webhook-Logs 
+                <span class="badge bg-secondary">{{ logs|length }}</span>
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if logs %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Zeit</th>
+                            <th>Typ</th>
+                            <th>URL</th>
+                            <th>Status</th>
+                            <th>Antwortzeit</th>
+                            <th>Trigger</th>
+                            <th>Daten</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td class="text-nowrap">
+                                <small>{{ log.timestamp[:16].replace('T', ' ') }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'primary' if log.webhook_type == 'nfc' else 'info' }}">
+                                    {{ log.webhook_type.upper() }}
+                                </span>
+                            </td>
+                            <td>
+                                <small class="text-muted" title="{{ log.url }}">
+                                    {{ (log.url[:30] + '...') if log.url|length > 30 else log.url }}
+                                </small>
+                            </td>
+                            <td>
+                                {% if log.success %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check"></i> {{ log.response_code or 'OK' }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-times"></i> {{ log.response_code or 'Error' }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.response_time_ms %}
+                                    <span class="badge bg-{{ 'success' if log.response_time_ms < 200 else 'warning' if log.response_time_ms < 1000 else 'danger' }}">
+                                        {{ log.response_time_ms }}ms
+                                    </span>
+                                {% else %}
+                                    <small class="text-muted">-</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ log.trigger_source or '-' }}</small>
+                            </td>
+                            <td>
+                                {% if log.card_pan_masked %}
+                                    <code class="small">{{ log.card_pan_masked }}</code>
+                                {% elif log.barcode_data %}
+                                    <code class="small">{{ log.barcode_data[:10] + '...' if log.barcode_data|length > 10 else log.barcode_data }}</code>
+                                {% else %}
+                                    <small class="text-muted">-</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.error_message %}
+                                    <button class="btn btn-outline-danger btn-sm" 
+                                            data-bs-toggle="tooltip" 
+                                            title="{{ log.error_message }}">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                    </button>
+                                {% else %}
+                                    <small class="text-success">
+                                        <i class="fas fa-check-circle"></i>
+                                    </small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-satellite-dish fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Keine Webhook-Logs gefunden</h5>
+                <p class="text-muted">
+                    {% if stats.total_requests == 0 %}
+                        Noch keine Webhooks ausgelöst.
+                    {% else %}
+                        Versuchen Sie andere Filtereinstellungen.
+                    {% endif %}
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Webhook-Typen Statistik - Professional Design -->
+    {% if stats.by_type %}
+    <div class="row mt-3">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0 text-muted">Nach Typ ({{ hours_back }}h)</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tbody>
+                            {% for webhook_type, type_stats in stats.by_type.items() %}
+                            <tr>
+                                <td class="text-uppercase small" width="100">
+                                    <i class="fas fa-{{ 'id-card' if webhook_type == 'nfc' else 'barcode' }} text-muted me-1"></i>
+                                    {{ webhook_type }}
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-success" role="progressbar"
+                                             style="width: {{ type_stats.success_rate }}%"
+                                             aria-valuenow="{{ type_stats.success_rate }}" aria-valuemin="0" aria-valuemax="100">
+                                            {{ type_stats.successful }}
+                                        </div>
+                                        <div class="progress-bar bg-danger" role="progressbar"
+                                             style="width: {{ 100 - type_stats.success_rate }}%"
+                                             aria-valuenow="{{ 100 - type_stats.success_rate }}" aria-valuemin="0" aria-valuemax="100">
+                                            {{ type_stats.failed if type_stats.failed > 0 else '' }}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td width="60" class="text-end small text-muted">
+                                    {{ type_stats.success_rate }}%
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0 text-muted">Aktuelle Fehler</h6>
+                </div>
+                <div class="card-body">
+                    {% if stats.recent_errors %}
+                        <div class="list-group list-group-flush">
+                            {% for error in stats.recent_errors[:3] %}
+                            <div class="list-group-item px-0 py-2 border-0">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <span class="badge bg-secondary badge-sm">{{ error.type.upper() }}</span>
+                                        <small class="text-danger d-block mt-1">
+                                            {{ error.error[:80] + '...' if error.error|length > 80 else error.error }}
+                                        </small>
+                                    </div>
+                                    <small class="text-muted ms-2">{{ error.timestamp[:16].replace('T', ' ') }}</small>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-check-circle text-success mb-2"></i>
+                            <p class="mb-0 small">Keine aktuellen Fehler</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Cleanup Modal -->
+{% if session.get('user_role') == 'admin' %}
+<div class="modal fade" id="cleanupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Webhook-Logs bereinigen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('routes.webhook_logs_cleanup') }}">
+                <div class="modal-body">
+                    <p>Alte Webhook-Logs löschen um Speicherplatz zu sparen.</p>
+                    <div class="mb-3">
+                        <label class="form-label">Logs behalten (Tage)</label>
+                        <select name="days_to_keep" class="form-select">
+                            <option value="7">Letzte 7 Tage</option>
+                            <option value="14">Letzte 14 Tage</option>
+                            <option value="30" selected>Letzte 30 Tage</option>
+                            <option value="90">Letzte 90 Tage</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Diese Aktion kann nicht rückgängig gemacht werden!
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Löschen
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+// Tooltips aktivieren
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl)
+});
+
+// Auto-refresh alle 30 Sekunden (optional)
+setTimeout(function() {
+    location.reload();
+}, 30000);
+</script>
+
+{% endblock %}

@@ -1,0 +1,30 @@
+[Unit]
+Description=SentraAI Entrance - Physical Access Control System
+After=network.target pcscd.service
+Wants=pcscd.service
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/usr/local/bin/QRVerification
+Environment="PATH=/usr/local/bin/QRVerification/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONPATH=/usr/local/bin/QRVerification"
+ExecStart=/usr/local/bin/QRVerification/venv/bin/gunicorn --bind 127.0.0.1:8000 --workers 1 --worker-class sync --timeout 60 --log-level info wsgi:app
+
+# Auto-recovery configuration
+Restart=always
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Watchdog support (app must ping systemd)
+WatchdogSec=30
+
+# Process management
+Type=simple
+KillMode=mixed
+KillSignal=SIGINT
+TimeoutStopSec=5
+
+[Install]
+WantedBy=multi-user.target 

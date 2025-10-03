@@ -1,0 +1,1104 @@
+{% extends "base.html" %}
+
+{% block title %}Barcodes{% endblock %}
+{% block page_title %}Barcode Verwaltung{% endblock %}
+
+{% block extra_css %}
+<style>
+    .barcode-container {
+        max-height: 350px;
+        overflow-y: auto;
+        border: 1px solid rgba(0,0,0,0.1);
+        border-radius: var(--border-radius);
+        padding: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .barcode-item {
+        padding: 0.75rem;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .barcode-item:last-child {
+        border-bottom: none;
+    }
+    .barcode-code {
+        font-family: monospace;
+        font-size: 1rem;
+        word-break: break-all;
+        padding-right: 10px;
+    }
+    .fixed-bottom-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: white;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        padding: 15px;
+        text-align: center;
+        z-index: 1000;
+    }
+    .page-content {
+        padding-bottom: 80px;
+    }
+    .badge-changes {
+        position: relative;
+        top: -8px;
+        right: -3px;
+        font-size: 10px;
+    }
+    .pagination {
+        display: flex;
+        justify-content: center;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .pagination li a {
+        display: inline-block;
+        padding: 5px 10px;
+        text-decoration: none;
+        transition: all 0.25s ease;
+    }
+    .item-added {
+        background-color: rgba(40, 167, 69, 0.1);
+    }
+    .item-removed {
+        text-decoration: line-through;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div id="pendingChangesSummary" class="alert alert-info" style="display: none;"></div>
+    </div>
+</div>
+
+<div class="search-input-container mb-3">
+    <i class="fas fa-search search-icon"></i>
+    <input type="text" id="barcode-search" class="form-control" placeholder="Suche nach Barcodes...">
+</div>
+
+<div class="row">
+    <!-- Permanente Barcodes -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Permanente Barcodes</h5>
+                <span class="badge bg-primary">{{ permanent_codes|length }} Codes</span>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('routes.add_barcode') }}" method="post" class="mb-3">
+                    <div class="input-group mb-2">
+                        <input type="text" id="permanent_barcode" name="barcode" class="form-control" placeholder="Neuer permanenter Barcode" required>
+                        <input type="hidden" name="type" value="permanent">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i> Hinzufügen
+                        </button>
+                    </div>
+                    <div class="mb-2">
+                        <textarea id="permanent_multiple" class="form-control" placeholder="Mehrere Barcodes (ein Barcode pro Zeile)" rows="3"></textarea>
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-1" onclick="addMultiplePermanentBarcodes()">
+                            <i class="fas fa-plus-circle me-1"></i> Mehrere hinzufügen
+                        </button>
+                    </div>
+                    <div class="mb-2">
+                        <input type="file" id="permanent_csv" accept=".csv,.txt" class="form-control">
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="importPermanentCSV()">
+                            <i class="fas fa-upload me-1"></i> CSV Import
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="permanent_barcodes_container" class="barcode-container">
+                    {% for code in permanent_codes %}
+                    <div class="barcode-item">
+                        <span class="barcode-code">{{ code }}</span>
+                        <form action="{{ url_for('routes.delete_barcode') }}" method="post">
+                            <input type="hidden" name="barcode" value="{{ code }}">
+                            <input type="hidden" name="type" value="permanent">
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Paginierung für permanente Barcodes -->
+                <div id="permanent_pagination" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Temporäre Barcodes -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Temporäre Barcodes</h5>
+                <span class="badge bg-accent">{{ temporary_codes|length }} Codes</span>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('routes.add_barcode') }}" method="post" class="mb-3">
+                    <div class="input-group mb-2">
+                        <input type="text" id="temporary_barcode" name="barcode" class="form-control" placeholder="Neuer temporärer Barcode" required>
+                        <input type="hidden" name="type" value="temporary">
+                        <button type="submit" class="btn btn-accent">
+                            <i class="fas fa-plus me-1"></i> Hinzufügen
+                        </button>
+                    </div>
+                    <div class="mb-2">
+                        <textarea id="temporary_multiple" class="form-control" placeholder="Mehrere Barcodes (ein Barcode pro Zeile)" rows="3"></textarea>
+                        <button type="button" class="btn btn-sm btn-outline-accent mt-1" onclick="addMultipleTemporaryBarcodes()">
+                            <i class="fas fa-plus-circle me-1"></i> Mehrere hinzufügen
+                        </button>
+                    </div>
+                    <div class="mb-2">
+                        <input type="file" id="temporary_csv" accept=".csv,.txt" class="form-control">
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="importTemporaryCSV()">
+                            <i class="fas fa-upload me-1"></i> CSV Import
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="temporary_barcodes_container" class="barcode-container">
+                    {% for code in temporary_codes %}
+                    <div class="barcode-item">
+                        <span class="barcode-code">{{ code }}</span>
+                        <form action="{{ url_for('routes.delete_barcode') }}" method="post">
+                            <input type="hidden" name="barcode" value="{{ code }}">
+                            <input type="hidden" name="type" value="temporary">
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Paginierung für temporäre Barcodes -->
+                <div id="temporary_pagination" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Speichern-Button mit Badge für ausstehende Änderungen -->
+<div class="fixed-bottom-container d-none">
+    <button id="saveChangesBtn" class="btn btn-lg btn-accent" disabled>
+        <i class="fas fa-save me-2"></i>
+        Änderungen speichern
+        <span id="pendingChangesBadge" class="badge bg-danger badge-changes">0</span>
+    </button>
+</div>
+
+<div class="notification-container">
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-info alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Structure to keep track of pending changes
+    const pendingChanges = {
+        addedPermanent: [],
+        removedPermanent: [],
+        addedTemporary: [],
+        removedTemporary: [],
+        get totalChanges() {
+            return this.addedPermanent.length + this.removedPermanent.length + 
+                   this.addedTemporary.length + this.removedTemporary.length;
+        }
+    };
+
+    // Pagination settings
+    const paginationConfig = {
+        permanent: {
+            itemsPerPage: 10,
+            currentPage: 1,
+            totalPages: 1
+        },
+        temporary: {
+            itemsPerPage: 10,
+            currentPage: 1,
+            totalPages: 1
+        }
+    };
+
+    // Add enter key handling for input fields
+    document.addEventListener('DOMContentLoaded', function() {
+        // Barcode-Suche
+        const searchInput = document.getElementById('barcode-search');
+        searchInput.addEventListener('input', function() {
+            filterBarcodes(this.value.trim().toLowerCase());
+        });
+        
+        // Permanent barcode input field
+        const permanentInput = document.getElementById('permanent_barcode');
+        permanentInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addPermanentBarcode();
+            }
+        });
+        
+        // Temporary barcode input field
+        const temporaryInput = document.getElementById('temporary_barcode');
+        temporaryInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addTemporaryBarcode();
+            }
+        });
+        
+        // Load any existing pending changes from localStorage
+        const savedChanges = localStorage.getItem('pendingBarcodeChanges');
+        if (savedChanges) {
+            try {
+                const parsedChanges = JSON.parse(savedChanges);
+                // Map the saved change names if needed for compatibility
+                if (parsedChanges.permanentAdded) {
+                    pendingChanges.addedPermanent = parsedChanges.permanentAdded;
+                    pendingChanges.removedPermanent = parsedChanges.permanentRemoved;
+                    pendingChanges.addedTemporary = parsedChanges.temporaryAdded;
+                    pendingChanges.removedTemporary = parsedChanges.temporaryRemoved;
+                } else {
+                    Object.assign(pendingChanges, parsedChanges);
+                }
+                updatePendingChangesUI();
+            } catch (e) {
+                console.error("Error loading pending changes:", e);
+                localStorage.removeItem('pendingBarcodeChanges');
+            }
+        }
+        
+        // Initialize pagination
+        initPagination();
+        
+        // Zeige den Speichern-Button nur, wenn die totale Anzahl von Änderungen > 0 ist
+        const fixedBottomContainer = document.querySelector('.fixed-bottom-container');
+        if (pendingChanges.totalChanges > 0) {
+            fixedBottomContainer.classList.remove('d-none');
+        }
+        
+        // Event Listener für den Speichern-Button
+        const saveBtn = document.getElementById('saveChangesBtn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', function() {
+                saveAllChanges();
+            });
+        }
+    });
+
+    // Funktion zum Filtern von Barcodes
+    function filterBarcodes(searchTerm) {
+        // Permanente Barcodes filtern
+        const permanentItems = document.querySelectorAll('#permanent_barcodes_container .barcode-item');
+        let permanentVisible = 0;
+        
+        permanentItems.forEach(item => {
+            const code = item.querySelector('.barcode-code').textContent.toLowerCase();
+            if (code.includes(searchTerm)) {
+                item.style.display = '';
+                permanentVisible++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        // Temporäre Barcodes filtern
+        const temporaryItems = document.querySelectorAll('#temporary_barcodes_container .barcode-item');
+        let temporaryVisible = 0;
+        
+        temporaryItems.forEach(item => {
+            const code = item.querySelector('.barcode-code').textContent.toLowerCase();
+            if (code.includes(searchTerm)) {
+                item.style.display = '';
+                temporaryVisible++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        // Anzeigen, wie viele sichtbar sind
+        const permanentBadge = document.querySelector('.col-md-6:first-child .badge');
+        permanentBadge.textContent = permanentVisible + ' / ' + permanentItems.length + ' Codes';
+        
+        const temporaryBadge = document.querySelector('.col-md-6:last-child .badge');
+        temporaryBadge.textContent = temporaryVisible + ' / ' + temporaryItems.length + ' Codes';
+    }
+    
+    // Save pending changes to localStorage
+    function savePendingChanges() {
+        localStorage.setItem('pendingBarcodeChanges', JSON.stringify({
+            addedPermanent: pendingChanges.addedPermanent,
+            removedPermanent: pendingChanges.removedPermanent,
+            addedTemporary: pendingChanges.addedTemporary,
+            removedTemporary: pendingChanges.removedTemporary,
+        }));
+        
+        // Update UI to reflect changes
+        updatePendingChangesUI();
+    }
+
+    // Update UI elements to show pending changes
+    function updatePendingChangesUI() {
+        // Update the badge with total number of changes
+        const badge = document.getElementById('pendingChangesBadge');
+        badge.textContent = pendingChanges.totalChanges;
+        
+        // Enable/disable save button
+        const saveBtn = document.getElementById('saveChangesBtn');
+        saveBtn.disabled = pendingChanges.totalChanges === 0;
+        
+        // Show/hide fixed-bottom-container
+        const fixedBottomContainer = document.querySelector('.fixed-bottom-container');
+        if (pendingChanges.totalChanges > 0) {
+            fixedBottomContainer.classList.remove('d-none');
+        } else {
+            fixedBottomContainer.classList.add('d-none');
+        }
+        
+        // Show summary of pending changes if any
+        const summary = document.getElementById('pendingChangesSummary');
+        if (pendingChanges.totalChanges > 0) {
+            let summaryText = '<strong>Ausstehende Änderungen:</strong> ';
+            
+            const changes = [];
+            if (pendingChanges.addedPermanent.length > 0) {
+                changes.push(`${pendingChanges.addedPermanent.length} permanente Barcodes hinzugefügt`);
+            }
+            if (pendingChanges.removedPermanent.length > 0) {
+                changes.push(`${pendingChanges.removedPermanent.length} permanente Barcodes entfernt`);
+            }
+            if (pendingChanges.addedTemporary.length > 0) {
+                changes.push(`${pendingChanges.addedTemporary.length} temporäre Barcodes hinzugefügt`);
+            }
+            if (pendingChanges.removedTemporary.length > 0) {
+                changes.push(`${pendingChanges.removedTemporary.length} temporäre Barcodes entfernt`);
+            }
+            
+            summaryText += changes.join(', ');
+            summary.innerHTML = summaryText;
+            summary.style.display = 'block';
+        } else {
+            summary.style.display = 'none';
+        }
+        
+        // Refresh the UI with current barcodes
+        refreshPermanentBarcodesUI();
+        refreshTemporaryBarcodesUI();
+    }
+    
+    // Add a permanent barcode
+    function addPermanentBarcode() {
+        const input = document.getElementById('permanent_barcode');
+        const barcode = input.value.trim();
+        
+        if (!barcode) return;
+        
+        // Check if the barcode already exists in the permanent list
+        const existingPermanentCodes = Array.from(document.querySelectorAll('#permanent_barcodes_container .barcode-code'))
+            .map(span => span.textContent.trim());
+        
+        // Check if it's already in the list and not in the removal list
+        if (existingPermanentCodes.includes(barcode) && 
+            !pendingChanges.removedPermanent.includes(barcode)) {
+            alert(`Der Barcode "${barcode}" existiert bereits in der permanenten Liste.`);
+            input.value = '';
+            input.focus();
+            return;
+        }
+        
+        // If it's in the removal list, just remove it from there (undoing a previous removal)
+        const removalIndex = pendingChanges.removedPermanent.indexOf(barcode);
+        if (removalIndex !== -1) {
+            pendingChanges.removedPermanent.splice(removalIndex, 1);
+        } 
+        // Otherwise add it to the addition list if it's not already there and not in the existing list
+        else if (!existingPermanentCodes.includes(barcode) && !pendingChanges.addedPermanent.includes(barcode)) {
+            pendingChanges.addedPermanent.push(barcode);
+            
+            // Create new element
+            const newItem = document.createElement('div');
+            newItem.className = 'barcode-item item-added';
+            newItem.innerHTML = `
+                <span class="barcode-code">${barcode}</span>
+                <button class="btn btn-sm btn-danger" onclick="removePermanentBarcode('${barcode}')">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            `;
+            document.getElementById('permanent_barcodes_container').appendChild(newItem);
+            
+            // Update pagination
+            refreshPaginationUI();
+        }
+        
+        // Reset the input
+        input.value = '';
+        input.focus();
+        
+        // Save changes and update UI
+        savePendingChanges();
+    }
+    
+    // Add a temporary barcode
+    function addTemporaryBarcode() {
+        const input = document.getElementById('temporary_barcode');
+        const barcode = input.value.trim();
+        
+        if (!barcode) return;
+        
+        // Check if the barcode already exists in the temporary list
+        const existingTemporaryCodes = Array.from(document.querySelectorAll('#temporary_barcodes_container .barcode-code'))
+            .map(span => span.textContent.trim());
+        
+        // Check if it's already in the list and not in the removal list
+        if (existingTemporaryCodes.includes(barcode) && 
+            !pendingChanges.removedTemporary.includes(barcode)) {
+            alert(`Der Barcode "${barcode}" existiert bereits in der temporären Liste.`);
+            input.value = '';
+            input.focus();
+            return;
+        }
+        
+        // If it's in the removal list, just remove it from there (undoing a previous removal)
+        const removalIndex = pendingChanges.removedTemporary.indexOf(barcode);
+        if (removalIndex !== -1) {
+            pendingChanges.removedTemporary.splice(removalIndex, 1);
+        } 
+        // Otherwise add it to the addition list if it's not already there and not in the existing list
+        else if (!existingTemporaryCodes.includes(barcode) && !pendingChanges.addedTemporary.includes(barcode)) {
+            pendingChanges.addedTemporary.push(barcode);
+            
+            // Create new element
+            const newItem = document.createElement('div');
+            newItem.className = 'barcode-item item-added';
+            newItem.innerHTML = `
+                <span class="barcode-code">${barcode}</span>
+                <button class="btn btn-sm btn-danger" onclick="removeTemporaryBarcode('${barcode}')">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            `;
+            document.getElementById('temporary_barcodes_container').appendChild(newItem);
+            
+            // Update pagination
+            refreshPaginationUI();
+        }
+        
+        // Reset the input
+        input.value = '';
+        input.focus();
+        
+        // Save changes and update UI
+        savePendingChanges();
+    }
+    
+    // Remove a permanent barcode
+    function removePermanentBarcode(barcode) {
+        // If it's in the addition list, just remove it from there (undoing a previous addition)
+        const additionIndex = pendingChanges.addedPermanent.indexOf(barcode);
+        if (additionIndex !== -1) {
+            pendingChanges.addedPermanent.splice(additionIndex, 1);
+            
+            // Remove the item from DOM if it was a pending addition
+            const items = document.querySelectorAll('#permanent_barcodes_container .barcode-item');
+            items.forEach(item => {
+                const code = item.querySelector('.barcode-code').textContent.trim();
+                if (code === barcode && item.classList.contains('item-added')) {
+                    item.remove();
+                }
+            });
+        } 
+        // Otherwise add it to the removal list if it's not already there
+        else if (!pendingChanges.removedPermanent.includes(barcode)) {
+            pendingChanges.removedPermanent.push(barcode);
+            
+            // Mark the item as removed
+            const items = document.querySelectorAll('#permanent_barcodes_container .barcode-item');
+            items.forEach(item => {
+                const code = item.querySelector('.barcode-code').textContent.trim();
+                if (code === barcode) {
+                    item.classList.add('item-removed');
+                }
+            });
+        }
+        
+        // Save changes and update UI
+        savePendingChanges();
+        
+        // Update pagination
+        refreshPaginationUI();
+    }
+    
+    // Remove a temporary barcode
+    function removeTemporaryBarcode(barcode) {
+        // If it's in the addition list, just remove it from there (undoing a previous addition)
+        const additionIndex = pendingChanges.addedTemporary.indexOf(barcode);
+        if (additionIndex !== -1) {
+            pendingChanges.addedTemporary.splice(additionIndex, 1);
+            
+            // Remove the item from DOM if it was a pending addition
+            const items = document.querySelectorAll('#temporary_barcodes_container .barcode-item');
+            items.forEach(item => {
+                const code = item.querySelector('.barcode-code').textContent.trim();
+                if (code === barcode && item.classList.contains('item-added')) {
+                    item.remove();
+                }
+            });
+        } 
+        // Otherwise add it to the removal list if it's not already there
+        else if (!pendingChanges.removedTemporary.includes(barcode)) {
+            pendingChanges.removedTemporary.push(barcode);
+            
+            // Mark the item as removed
+            const items = document.querySelectorAll('#temporary_barcodes_container .barcode-item');
+            items.forEach(item => {
+                const code = item.querySelector('.barcode-code').textContent.trim();
+                if (code === barcode) {
+                    item.classList.add('item-removed');
+                }
+            });
+        }
+        
+        // Save changes and update UI
+        savePendingChanges();
+        
+        // Update pagination
+        refreshPaginationUI();
+    }
+    
+    // Save all changes to the server
+    function saveAllChanges() {
+        // Disable the save button to prevent multiple submissions
+        document.getElementById('saveChangesBtn').disabled = true;
+        
+        // Make an AJAX request to save the changes
+        fetch('/save_barcode_changes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                addedPermanent: pendingChanges.addedPermanent,
+                removedPermanent: pendingChanges.removedPermanent,
+                addedTemporary: pendingChanges.addedTemporary,
+                removedTemporary: pendingChanges.removedTemporary
+            })
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            }
+            throw new Error('Serverfehler beim Speichern der Änderungen');
+        })
+        .then(data => {
+            if (data.success) {
+                // On success, clear the pending changes
+                pendingChanges.addedPermanent = [];
+                pendingChanges.removedPermanent = [];
+                pendingChanges.addedTemporary = [];
+                pendingChanges.removedTemporary = [];
+                
+                // Remove the pending changes from localStorage
+                localStorage.removeItem('pendingBarcodeChanges');
+                
+                // Show success message
+                const serviceMessage = data.service_restarted ? 
+                    'Dienst wurde erfolgreich neu gestartet.' : 
+                    'Warnung: Dienst konnte nicht neu gestartet werden.';
+                
+                alert(`Änderungen wurden erfolgreich gespeichert. ${serviceMessage} Die Seite wird neu geladen.`);
+                
+                // Reload the page to reflect the changes
+                window.location.reload();
+            } else {
+                throw new Error(data.error || 'Unbekannter Fehler beim Speichern');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving changes:', error);
+            alert('Ein Fehler ist aufgetreten: ' + error.message);
+            document.getElementById('saveChangesBtn').disabled = false;
+        });
+    }
+    
+    // Initialize pagination
+    function initPagination() {
+        // Initialize permanent codes pagination
+        const permanentContainer = document.getElementById('permanent_barcodes_container');
+        const permanentItems = permanentContainer.querySelectorAll('.barcode-item');
+        
+        paginationConfig.permanent.totalPages = Math.max(1, Math.ceil(permanentItems.length / paginationConfig.permanent.itemsPerPage));
+        renderPagination('permanent');
+        showPage('permanent', 1);
+        
+        // Initialize temporary codes pagination
+        const temporaryContainer = document.getElementById('temporary_barcodes_container');
+        const temporaryItems = temporaryContainer.querySelectorAll('.barcode-item');
+        
+        paginationConfig.temporary.totalPages = Math.max(1, Math.ceil(temporaryItems.length / paginationConfig.temporary.itemsPerPage));
+        renderPagination('temporary');
+        showPage('temporary', 1);
+    }
+    
+    // Refresh pagination UI after adding/removing items
+    function refreshPaginationUI() {
+        // Recalculate pagination for permanent codes
+        const permanentContainer = document.getElementById('permanent_barcodes_container');
+        const permanentItems = permanentContainer.querySelectorAll('.barcode-item');
+        paginationConfig.permanent.totalPages = Math.max(1, Math.ceil(permanentItems.length / paginationConfig.permanent.itemsPerPage));
+        renderPagination('permanent');
+        
+        // Recalculate pagination for temporary codes
+        const temporaryContainer = document.getElementById('temporary_barcodes_container');
+        const temporaryItems = temporaryContainer.querySelectorAll('.barcode-item');
+        paginationConfig.temporary.totalPages = Math.max(1, Math.ceil(temporaryItems.length / paginationConfig.temporary.itemsPerPage));
+        renderPagination('temporary');
+    }
+    
+    // Refresh permanent barcodes UI
+    function refreshPermanentBarcodesUI() {
+        const container = document.getElementById('permanent_barcodes_container');
+        const allItems = Array.from(container.querySelectorAll('.barcode-item'));
+        
+        // Mark removed codes
+        allItems.forEach(item => {
+            const code = item.querySelector('.barcode-code').textContent.trim();
+            if (pendingChanges.removedPermanent.includes(code)) {
+                item.classList.add('item-removed');
+            } else {
+                item.classList.remove('item-removed');
+            }
+        });
+        
+        // Update pagination and refresh view
+        refreshPaginationUI();
+        showPage('permanent', paginationConfig.permanent.currentPage);
+    }
+    
+    // Refresh temporary barcodes UI
+    function refreshTemporaryBarcodesUI() {
+        const container = document.getElementById('temporary_barcodes_container');
+        const allItems = Array.from(container.querySelectorAll('.barcode-item'));
+        
+        // Mark removed codes
+        allItems.forEach(item => {
+            const code = item.querySelector('.barcode-code').textContent.trim();
+            if (pendingChanges.removedTemporary.includes(code)) {
+                item.classList.add('item-removed');
+            } else {
+                item.classList.remove('item-removed');
+            }
+        });
+        
+        // Update pagination and refresh view
+        refreshPaginationUI();
+        showPage('temporary', paginationConfig.temporary.currentPage);
+    }
+    
+    // Render pagination for a specific type (permanent or temporary)
+    function renderPagination(type) {
+        const config = paginationConfig[type];
+        const container = document.getElementById(`${type}_pagination`);
+        
+        if (!container || config.totalPages <= 1) {
+            if (container) container.innerHTML = '';
+            return;
+        }
+        
+        let html = '<ul class="pagination">';
+        
+        // Previous button
+        html += `
+            <li class="${config.currentPage === 1 ? 'disabled' : ''}">
+                <a href="#" onclick="showPage('${type}', ${config.currentPage - 1}); return false;">«</a>
+            </li>
+        `;
+        
+        // Page numbers
+        for (let i = 1; i <= config.totalPages; i++) {
+            html += `
+                <li class="${i === config.currentPage ? 'active' : ''}">
+                    <a href="#" onclick="showPage('${type}', ${i}); return false;">${i}</a>
+                </li>
+            `;
+        }
+        
+        // Next button
+        html += `
+            <li class="${config.currentPage === config.totalPages ? 'disabled' : ''}">
+                <a href="#" onclick="showPage('${type}', ${config.currentPage + 1}); return false;">»</a>
+            </li>
+        `;
+        
+        html += '</ul>';
+        container.innerHTML = html;
+    }
+    
+    // Show a specific page of barcodes
+    function showPage(type, page) {
+        const config = paginationConfig[type];
+        const container = document.getElementById(`${type}_barcodes_container`);
+        
+        if (!container) return;
+        
+        // Update current page
+        config.currentPage = page;
+        
+        // Get all barcode items
+        const allItems = Array.from(container.querySelectorAll('.barcode-item'));
+        
+        // Hide all items first
+        allItems.forEach(item => item.style.display = 'none');
+        
+        // Show only items for current page
+        const startIndex = (page - 1) * config.itemsPerPage;
+        const endIndex = startIndex + config.itemsPerPage;
+        
+        for (let i = startIndex; i < Math.min(endIndex, allItems.length); i++) {
+            if (allItems[i]) {
+                allItems[i].style.display = 'flex';
+            }
+        }
+        
+        // Update pagination links
+        renderPagination(type);
+    }
+    
+    // Add multiple permanent barcodes
+    function addMultiplePermanentBarcodes() {
+        const textarea = document.getElementById('permanent_multiple');
+        const barcodes = textarea.value.split('\n').map(code => code.trim()).filter(code => code.length > 0);
+        
+        if (barcodes.length === 0) {
+            alert('Bitte geben Sie mindestens einen Barcode ein.');
+            return;
+        }
+        
+        let addedCount = 0;
+        let duplicateCount = 0;
+        
+        // Check existing codes
+        const existingPermanentCodes = Array.from(document.querySelectorAll('#permanent_barcodes_container .barcode-code'))
+            .map(span => span.textContent.trim());
+        
+        barcodes.forEach(barcode => {
+            if (existingPermanentCodes.includes(barcode) && !pendingChanges.removedPermanent.includes(barcode)) {
+                duplicateCount++;
+                return;
+            }
+            
+            // If it's in the removal list, remove it from there
+            const removalIndex = pendingChanges.removedPermanent.indexOf(barcode);
+            if (removalIndex !== -1) {
+                pendingChanges.removedPermanent.splice(removalIndex, 1);
+                addedCount++;
+            } 
+            // Otherwise add it to the addition list
+            else if (!existingPermanentCodes.includes(barcode) && !pendingChanges.addedPermanent.includes(barcode)) {
+                pendingChanges.addedPermanent.push(barcode);
+                
+                // Create new element
+                const newItem = document.createElement('div');
+                newItem.className = 'barcode-item item-added';
+                newItem.innerHTML = `
+                    <span class="barcode-code">${barcode}</span>
+                    <button class="btn btn-sm btn-danger" onclick="removePermanentBarcode('${barcode}')">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                `;
+                document.getElementById('permanent_barcodes_container').appendChild(newItem);
+                addedCount++;
+            }
+        });
+        
+        // Clear textarea
+        textarea.value = '';
+        
+        // Show result
+        let message = `${addedCount} Barcodes hinzugefügt.`;
+        if (duplicateCount > 0) {
+            message += ` ${duplicateCount} Duplikate übersprungen.`;
+        }
+        alert(message);
+        
+        // Update UI
+        refreshPaginationUI();
+        savePendingChanges();
+    }
+    
+    // Add multiple temporary barcodes
+    function addMultipleTemporaryBarcodes() {
+        const textarea = document.getElementById('temporary_multiple');
+        const barcodes = textarea.value.split('\n').map(code => code.trim()).filter(code => code.length > 0);
+        
+        if (barcodes.length === 0) {
+            alert('Bitte geben Sie mindestens einen Barcode ein.');
+            return;
+        }
+        
+        let addedCount = 0;
+        let duplicateCount = 0;
+        
+        // Check existing codes
+        const existingTemporaryCodes = Array.from(document.querySelectorAll('#temporary_barcodes_container .barcode-code'))
+            .map(span => span.textContent.trim());
+        
+        barcodes.forEach(barcode => {
+            if (existingTemporaryCodes.includes(barcode) && !pendingChanges.removedTemporary.includes(barcode)) {
+                duplicateCount++;
+                return;
+            }
+            
+            // If it's in the removal list, remove it from there
+            const removalIndex = pendingChanges.removedTemporary.indexOf(barcode);
+            if (removalIndex !== -1) {
+                pendingChanges.removedTemporary.splice(removalIndex, 1);
+                addedCount++;
+            } 
+            // Otherwise add it to the addition list
+            else if (!existingTemporaryCodes.includes(barcode) && !pendingChanges.addedTemporary.includes(barcode)) {
+                pendingChanges.addedTemporary.push(barcode);
+                
+                // Create new element
+                const newItem = document.createElement('div');
+                newItem.className = 'barcode-item item-added';
+                newItem.innerHTML = `
+                    <span class="barcode-code">${barcode}</span>
+                    <button class="btn btn-sm btn-danger" onclick="removeTemporaryBarcode('${barcode}')">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                `;
+                document.getElementById('temporary_barcodes_container').appendChild(newItem);
+                addedCount++;
+            }
+        });
+        
+        // Clear textarea
+        textarea.value = '';
+        
+        // Show result
+        let message = `${addedCount} Barcodes hinzugefügt.`;
+        if (duplicateCount > 0) {
+            message += ` ${duplicateCount} Duplikate übersprungen.`;
+        }
+        alert(message);
+        
+        // Update UI
+        refreshPaginationUI();
+        savePendingChanges();
+    }
+    
+    // Import permanent barcodes from CSV
+    function importPermanentCSV() {
+        const fileInput = document.getElementById('permanent_csv');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            alert('Bitte wählen Sie eine CSV-Datei aus.');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const content = e.target.result;
+            const lines = content.split('\n');
+            const barcodes = [];
+            
+            lines.forEach(line => {
+                // Split by comma and take first column, or use entire line if no comma
+                const barcode = line.split(',')[0].trim();
+                if (barcode && !barcode.startsWith('#')) { // Skip comments
+                    barcodes.push(barcode);
+                }
+            });
+            
+            if (barcodes.length === 0) {
+                alert('Keine gültigen Barcodes in der Datei gefunden.');
+                return;
+            }
+            
+            // Process barcodes similar to addMultiplePermanentBarcodes
+            let addedCount = 0;
+            let duplicateCount = 0;
+            
+            const existingPermanentCodes = Array.from(document.querySelectorAll('#permanent_barcodes_container .barcode-code'))
+                .map(span => span.textContent.trim());
+            
+            barcodes.forEach(barcode => {
+                if (existingPermanentCodes.includes(barcode) && !pendingChanges.removedPermanent.includes(barcode)) {
+                    duplicateCount++;
+                    return;
+                }
+                
+                const removalIndex = pendingChanges.removedPermanent.indexOf(barcode);
+                if (removalIndex !== -1) {
+                    pendingChanges.removedPermanent.splice(removalIndex, 1);
+                    addedCount++;
+                } 
+                else if (!existingPermanentCodes.includes(barcode) && !pendingChanges.addedPermanent.includes(barcode)) {
+                    pendingChanges.addedPermanent.push(barcode);
+                    
+                    const newItem = document.createElement('div');
+                    newItem.className = 'barcode-item item-added';
+                    newItem.innerHTML = `
+                        <span class="barcode-code">${barcode}</span>
+                        <button class="btn btn-sm btn-danger" onclick="removePermanentBarcode('${barcode}')">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    `;
+                    document.getElementById('permanent_barcodes_container').appendChild(newItem);
+                    addedCount++;
+                }
+            });
+            
+            // Clear file input
+            fileInput.value = '';
+            
+            // Show result with better feedback
+            let message = `CSV-Import abgeschlossen:\n`;
+            message += `✅ ${addedCount} neue Barcodes hinzugefügt\n`;
+            if (duplicateCount > 0) {
+                message += `⚠️ ${duplicateCount} Duplikate übersprungen\n`;
+            }
+            message += `\nGesamte Barcodes aus CSV: ${barcodes.length}`;
+            
+            // Show detailed feedback
+            console.log('CSV-Import Details:', {
+                total: barcodes.length,
+                added: addedCount,
+                duplicates: duplicateCount,
+                importedBarcodes: barcodes.slice(0, 10) // Show first 10 for debugging
+            });
+            
+            alert(message);
+            
+            // Update UI and show imported items
+            refreshPaginationUI();
+            savePendingChanges();
+            
+            // Show the last page to see newly added items
+            const containerType = file === fileInput ? 'permanent' : 'temporary';
+            const totalItems = document.querySelectorAll(`#${containerType}_barcodes_container .barcode-item`).length;
+            const lastPage = Math.ceil(totalItems / paginationConfig[containerType].itemsPerPage);
+            showPage(containerType, lastPage);
+        };
+        
+        reader.readAsText(file);
+    }
+    
+    // Import temporary barcodes from CSV
+    function importTemporaryCSV() {
+        const fileInput = document.getElementById('temporary_csv');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            alert('Bitte wählen Sie eine CSV-Datei aus.');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const content = e.target.result;
+            const lines = content.split('\n');
+            const barcodes = [];
+            
+            lines.forEach(line => {
+                // Split by comma and take first column, or use entire line if no comma
+                const barcode = line.split(',')[0].trim();
+                if (barcode && !barcode.startsWith('#')) { // Skip comments
+                    barcodes.push(barcode);
+                }
+            });
+            
+            if (barcodes.length === 0) {
+                alert('Keine gültigen Barcodes in der Datei gefunden.');
+                return;
+            }
+            
+            // Process barcodes similar to addMultipleTemporaryBarcodes
+            let addedCount = 0;
+            let duplicateCount = 0;
+            
+            const existingTemporaryCodes = Array.from(document.querySelectorAll('#temporary_barcodes_container .barcode-code'))
+                .map(span => span.textContent.trim());
+            
+            barcodes.forEach(barcode => {
+                if (existingTemporaryCodes.includes(barcode) && !pendingChanges.removedTemporary.includes(barcode)) {
+                    duplicateCount++;
+                    return;
+                }
+                
+                const removalIndex = pendingChanges.removedTemporary.indexOf(barcode);
+                if (removalIndex !== -1) {
+                    pendingChanges.removedTemporary.splice(removalIndex, 1);
+                    addedCount++;
+                } 
+                else if (!existingTemporaryCodes.includes(barcode) && !pendingChanges.addedTemporary.includes(barcode)) {
+                    pendingChanges.addedTemporary.push(barcode);
+                    
+                    const newItem = document.createElement('div');
+                    newItem.className = 'barcode-item item-added';
+                    newItem.innerHTML = `
+                        <span class="barcode-code">${barcode}</span>
+                        <button class="btn btn-sm btn-danger" onclick="removeTemporaryBarcode('${barcode}')">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    `;
+                    document.getElementById('temporary_barcodes_container').appendChild(newItem);
+                    addedCount++;
+                }
+            });
+            
+            // Clear file input
+            fileInput.value = '';
+            
+            // Show result with better feedback
+            let message = `CSV-Import abgeschlossen:\n`;
+            message += `✅ ${addedCount} neue Barcodes hinzugefügt\n`;
+            if (duplicateCount > 0) {
+                message += `⚠️ ${duplicateCount} Duplikate übersprungen\n`;
+            }
+            message += `\nGesamte Barcodes aus CSV: ${barcodes.length}`;
+            
+            // Show detailed feedback
+            console.log('CSV-Import Details:', {
+                total: barcodes.length,
+                added: addedCount,
+                duplicates: duplicateCount,
+                importedBarcodes: barcodes.slice(0, 10) // Show first 10 for debugging
+            });
+            
+            alert(message);
+            
+            // Update UI and show imported items
+            refreshPaginationUI();
+            savePendingChanges();
+            
+            // Show the last page to see newly added items
+            const containerType = file === fileInput ? 'permanent' : 'temporary';
+            const totalItems = document.querySelectorAll(`#${containerType}_barcodes_container .barcode-item`).length;
+            const lastPage = Math.ceil(totalItems / paginationConfig[containerType].itemsPerPage);
+            showPage(containerType, lastPage);
+        };
+        
+        reader.readAsText(file);
+    }
+</script>
+{% endblock %} 

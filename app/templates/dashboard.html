@@ -1,0 +1,478 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block head %}
+<!-- Fallback-Modus - keine Socket.IO mehr benötigt -->
+<style>
+.badge-sm {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.card-body.p-3 {
+    border-radius: 0.375rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+.text-primary { color: #0d6efd !important; }
+.text-info { color: #0dcaf0 !important; }
+.text-success { color: #198754 !important; }
+
+@media (max-width: 768px) {
+    .d-flex.gap-3 {
+        gap: 1rem !important;
+    }
+    .small {
+        font-size: 0.8rem;
+    }
+}
+
+.table-row-fade-in {
+    animation: fadeInHighlight 2s ease-in-out;
+}
+
+@keyframes fadeInHighlight {
+    0% {
+        background-color: #d4edda;
+        transform: translateY(-10px);
+        opacity: 0;
+    }
+    50% {
+        background-color: #d4edda;
+    }
+    100% {
+        background-color: transparent;
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Status-Zeile mit Live-Indikator -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Live Dashboard</h4>
+            <div class="d-flex align-items-center gap-3">
+                <div class="d-flex align-items-center">
+                    <span class="me-2">Status:</span>
+                    <span id="websocket-status" class="badge bg-secondary">Startet...</span>
+                </div>
+                <div class="small text-muted">
+                    Letztes Update: <span id="last-update">Lade...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-title">Scans heute</div>
+            <div class="stats-value" id="scans-today">{{ today_scans }}</div>
+            <div class="stats-icon"><i class="fas fa-barcode"></i></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-title">NFC-Scans heute</div>
+            <div class="stats-value" id="card-scans-today">{{ today_card_scans|default(0) }}</div>
+            <div class="stats-icon"><i class="fas fa-credit-card"></i></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-title">Scans (30 Tage)</div>
+            <div class="stats-value" id="scans-30-days">{{ scans_30_days|default(0) }}</div>
+            <div class="stats-icon"><i class="fas fa-calendar-alt"></i></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-title">NFC-Scans (30 Tage)</div>
+            <div class="stats-value" id="card-scans-30-days">{{ card_scans_30_days|default(0) }}</div>
+            <div class="stats-icon"><i class="fas fa-calendar-check"></i></div>
+        </div>
+    </div>
+</div>
+
+<!-- Kompakte System & Hardware Status -->
+<div class="row mb-4 mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body p-3">
+                <div class="row align-items-center">
+                    <!-- System Status - Kompakt -->
+                    <div class="col-lg-4 col-md-6 mb-2 mb-lg-0">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-server text-primary me-2"></i>
+                            <div class="flex-grow-1">
+                                <div class="small text-muted">System</div>
+                                <div class="d-flex gap-3 small">
+                                    <span>CPU: <strong id="cpu-usage">-</strong></span>
+                                    <span>RAM: <strong id="ram-usage">-</strong></span>
+                                    <span>Up: <strong id="system-uptime">-</strong></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- NFC Status - Kompakt -->
+                    <div class="col-lg-3 col-md-6 mb-2 mb-lg-0">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-credit-card text-info me-2"></i>
+                            <div class="flex-grow-1">
+                                <div class="small text-muted">NFC-Reader</div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span id="nfc-status-badge" class="badge bg-secondary badge-sm">Wird geladen...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Türsteuerung - Kompakt -->
+                    <div class="col-lg-5">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-door-open text-success me-2"></i>
+                                <div>
+                                    <div class="small text-muted">Türsteuerung</div>
+                                    <span id="dashboard-door-status" class="badge bg-secondary badge-sm">Wird geladen...</span>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <form action="{{ url_for('routes.open_door_route') }}" method="post" class="d-inline">
+                                    <button class="btn btn-sm btn-success" title="Tür öffnen">
+                                        <i class="fas fa-unlock"></i>
+                                    </button>
+                                </form>
+                                <form action="{{ url_for('routes.close_door_route') }}" method="post" class="d-inline">
+                                    <button class="btn btn-sm btn-outline-secondary" title="Tür schließen">
+                                        <i class="fas fa-lock"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Live Scan-Aktivitäten</h5>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-info" id="live-scans-count">0 Live-Scans</span>
+            <button class="btn btn-sm btn-outline-secondary" onclick="window.toggleLiveScans()">
+                <i class="fas fa-pause" id="live-toggle-icon"></i>
+                <span id="live-toggle-text">Auto-Update</span>
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- Live Scans in zwei Spalten aufgeteilt -->
+        <div id="live-scans-section" class="row">
+            <!-- NFC Scans Spalte -->
+            <div class="{% if barcode_visibility_enabled %}col-md-6{% else %}col-md-12{% endif %}">
+                <h6 class="mb-3">
+                    <i class="fas fa-credit-card text-info me-2"></i>Aktuelle NFC-Scans
+                </h6>
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th>Zeit</th>
+                                <th>Kartentyp</th>
+                                <th>PAN</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-nfc-scans-table">
+                            {% if nfc_scans %}
+                                {% for scan in nfc_scans %}
+                                <tr>
+                                    <td>{{ scan.timestamp }}</td>
+                                    <td>
+                                        {% set card_type = scan.get('card_type', 'Bankkarte') %}
+                                        {% if 'Mastercard' in card_type %}
+                                            <span class="badge bg-warning">Mastercard</span>
+                                        {% elif 'MIFARE' in card_type %}
+                                            <span class="badge bg-info">MIFARE</span>
+                                        {% elif 'Girocard' in card_type %}
+                                            <span class="badge bg-primary">Girocard</span>
+                                        {% elif 'Sparkasse' in card_type %}
+                                            <span class="badge bg-danger">Sparkasse</span>
+                                        {% elif 'Visa' in card_type %}
+                                            <span class="badge bg-primary">Visa</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ card_type }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {# PCI DSS COMPLIANT: Display masked PAN #}
+                                        {% if scan.get('pan_last4') %}
+                                            ****-****-****-{{ scan.pan_last4 }}
+                                        {% elif scan.get('pan') %}
+                                            {# Legacy support for old plaintext data #}
+                                            {% if scan.pan|length > 4 %}
+                                                ****-****-****-{{ scan.pan[-4:] }}
+                                            {% else %}
+                                                {{ scan.pan }}
+                                            {% endif %}
+                                        {% else %}
+                                            {{ scan.code }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if scan.status == "Permanent" %}
+                                            <span class="badge bg-success">Gültig</span>
+                                        {% elif scan.status == "Authorized" %}
+                                            <span class="badge bg-success">Autorisiert</span>
+                                        {% elif scan.status == "NFC-Karte" %}
+                                            <span class="badge bg-primary">NFC-Karte</span>
+                                        {% elif scan.status == "Temporär" %}
+                                            <span class="badge bg-info">Temporär</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">{{ scan.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">
+                                        <i class="fas fa-credit-card me-2"></i>Keine aktuellen NFC-Scans vorhanden
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Barcode Scans Spalte -->
+            {% if barcode_visibility_enabled %}
+            <div class="col-md-6">
+                <h6 class="mb-3">
+                    <i class="fas fa-barcode text-primary me-2"></i>Aktuelle Barcode-Scans
+                </h6>
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th>Zeit</th>
+                                <th>Typ</th>
+                                <th>Code</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-barcode-scans-table">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin me-2"></i>Warte auf Barcode-Scans...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Historische Scans (Filter) - Show for barcode scans only -->
+        <!-- Show barcode scan history only -->
+        <div id="historical-scans-section" class="mt-4">
+            <h6 class="mb-3">Historische Barcode-Scans durchsuchen</h6>
+            <div class="filter-compact mb-3">
+                <form id="filter-form" method="get" class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label for="date" class="form-label small">Datum</label>
+                        <input type="date" id="date" name="date" class="form-control form-control-sm" value="{{ current_date }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="time_from" class="form-label small">Von</label>
+                        <input type="time" id="time_from" name="time_from" class="form-control form-control-sm" value="{{ current_time_from }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="time_to" class="form-label small">Bis</label>
+                        <input type="time" id="time_to" name="time_to" class="form-control form-control-sm" value="{{ current_time_to }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="validity" class="form-label small">Status</label>
+                        <select id="validity" name="validity" class="form-select form-select-sm">
+                            <option value="">Alle</option>
+                            <option value="valid" {% if current_validity == 'valid' %}selected{% endif %}>Gültig</option>
+                            <option value="invalid" {% if current_validity == 'invalid' %}selected{% endif %}>Ungültig</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-sm btn-accent">
+                                <i class="fas fa-filter me-1"></i>Filtern
+                            </button>
+                            <a href="{{ url_for('routes.dashboard') }}" class="btn btn-sm btn-secondary">
+                                <i class="fas fa-times me-1"></i>Zurücksetzen
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Zeitstempel</th>
+                            <th>Code</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scans-table-body">
+                        {% set barcode_scans = scans | selectattr('scan_type', 'ne', 'nfc') | list %}
+                        {% if barcode_scans %}
+                            {% for scan in barcode_scans %}
+                            {% if scan.get('scan_type') != 'nfc' and not scan.code.startswith('NFC-') %}
+                            <tr>
+                                <td>{{ scan.timestamp }}</td>
+                                <td>{{ scan.code }}</td>
+                                <td>
+                                    {% if scan.status == "Permanent" %}
+                                        <span class="badge bg-success">Gültig</span>
+                                    {% elif scan.status == "Temporär" %}
+                                        <span class="badge bg-info">Gültig (24h)</span>
+                                    {% elif scan.status == "Gültig" %}
+                                        <span class="badge bg-success">Gültig</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Ungültig</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">
+                                    <i class="fas fa-barcode me-2"></i>Keine historischen Barcode-Scans vorhanden
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Paginierung - Show when there are scans (NFC or barcode) -->
+        {% if total_pages > 1 %}
+        <nav aria-label="Scans Paginierung">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="small text-muted">
+                    Zeige {{ scans|length }} von {{ total_scans }} Einträgen
+                </div>
+                <ul class="pagination pagination-sm">
+                    <!-- Vorherige Seite -->
+                    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('routes.dashboard', page=page-1, date=current_date, time_from=current_time_from, time_to=current_time_to, validity=current_validity) }}" aria-label="Vorherige">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+
+                    <!-- Erste Seite -->
+                    {% if page > 3 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('routes.dashboard', page=1, date=current_date, time_from=current_time_from, time_to=current_time_to, validity=current_validity) }}">1</a>
+                    </li>
+                    {% if page > 4 %}
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#">...</a>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+
+                    <!-- Seitennummern -->
+                    {% for p in page_range %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('routes.dashboard', page=p, date=current_date, time_from=current_time_from, time_to=current_time_to, validity=current_validity) }}">{{ p }}</a>
+                    </li>
+                    {% endfor %}
+
+                    <!-- Letzte Seite -->
+                    {% if page < total_pages-2 %}
+                    {% if page < total_pages-3 %}
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#">...</a>
+                    </li>
+                    {% endif %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('routes.dashboard', page=total_pages, date=current_date, time_from=current_time_from, time_to=current_time_to, validity=current_validity) }}">{{ total_pages }}</a>
+                    </li>
+                    {% endif %}
+
+                    <!-- Nächste Seite -->
+                    <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('routes.dashboard', page=page+1, date=current_date, time_from=current_time_from, time_to=current_time_to, validity=current_validity) }}" aria-label="Nächste">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+
+
+<!-- WebSocket Client -->
+<script src="{{ url_for('static', filename='js/websocket.js') }}"></script>
+
+<script>
+// Live-Scans Toggle
+let liveScansEnabled = true;
+let liveScanCount = 0;
+
+function toggleLiveScans() {
+    liveScansEnabled = !liveScansEnabled;
+    const icon = document.getElementById('live-toggle-icon');
+    const text = document.getElementById('live-toggle-text');
+    
+    if (liveScansEnabled) {
+        icon.className = 'fas fa-pause';
+        text.textContent = 'Pausieren';
+    } else {
+        icon.className = 'fas fa-play';
+        text.textContent = 'Fortsetzen';
+    }
+}
+
+// Dashboard-spezifische Initialisierung
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🎯 Dashboard initialisiert');
+    
+    // Body-Klasse für Dashboard-Erkennung hinzufügen
+    document.body.classList.add('dashboard-page');
+    
+    // Verbesserte Toggle-Funktion überschreiben
+    window.toggleLiveScans = function() {
+        if (window.guardWS) {
+            window.guardWS.togglePolling();
+            
+            // Button-Status entsprechend aktualisieren
+            setTimeout(() => {
+                updateToggleButton(window.guardWS.pollingActive);
+            }, 100);
+        }
+    };
+    
+    console.log('✅ Dashboard-Funktionen bereit');
+});
+
+// Auto-Update wird vollständig von websocket.js gesteuert
+</script>
+{% endblock %}

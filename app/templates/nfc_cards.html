@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}NFC-Karten{% endblock %}
+{% block page_title %}NFC-Karten{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Letzte NFC-Kartenscans</h5>
+                <button class="btn btn-sm btn-accent" id="refresh-scans">
+                    <i class="fas fa-sync-alt me-1"></i>Aktualisieren
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="scans-container" class="nfc-scan-container">
+                    {% if card_scans %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Zeitpunkt</th>
+                                    <th>Karte</th>
+                                    <th>Ablaufdatum</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for scan in card_scans %}
+                                <tr>
+                                    <td>{{ scan.timestamp }}</td>
+                                    <td>
+                                        {# PCI DSS COMPLIANT: Always show masked PAN, never full PAN #}
+                                        {% if scan.get('pan_last4') %}
+                                            ****-****-****-{{ scan.pan_last4 }}
+                                        {% elif scan.get('pan') %}
+                                            {# Legacy support for old plaintext data #}
+                                            {% if scan.pan|length > 4 %}
+                                                ****-****-****-{{ scan.pan[-4:] }}
+                                            {% else %}
+                                                {{ scan.pan }}
+                                            {% endif %}
+                                        {% else %}
+                                            ****-****-****-****
+                                        {% endif %}
+                                        {% if scan.card_type %}<span class="badge bg-info">{{ scan.card_type }}</span>{% endif %}
+                                    </td>
+                                    <td>{{ scan.expiry_date or '-' }}</td>
+                                    <td>
+                                        {% if scan.status == 'Permanent' or scan.status == 'Temporär' %}
+                                        <span class="badge bg-success">Gültig</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Ungültig</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        
+                        <!-- Pagination controls -->
+                        {% if total_pages > 1 %}
+                        <nav aria-label="Seitennavigation für NFC-Kartenscans">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                                    <a class="page-link" href="javascript:void(0)" onclick="loadPage({{ page-1 if page > 1 else page }})" aria-label="Vorherige">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+
+                                {% for p in range(1, total_pages + 1) %}
+                                <li class="page-item {% if p == page %}active{% endif %}">
+                                    <a class="page-link" href="javascript:void(0)" onclick="loadPage({{ p }})">{{ p }}</a>
+                                </li>
+                                {% endfor %}
+
+                                <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                                    <a class="page-link" href="javascript:void(0)" onclick="loadPage({{ page+1 if page < total_pages else page }})" aria-label="Nächste">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                        <p class="text-center text-muted">Zeige {{ card_scans|length }} von {{ total_scans }} Einträgen</p>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-search fa-3x mb-3"></i>
+                        <p>Keine NFC-Kartenscans gefunden</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">NFC-Reader Status</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="fw-bold">Status:</span>
+                        <span id="nfc-status-badge" class="badge bg-secondary">Wird geladen...</span>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="fw-bold">Verbindung:</span>
+                        <span id="nfc-connection-badge" class="badge bg-secondary">Wird geladen...</span>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="fw-bold">Letzte Aktivität:</span>
+                        <span id="nfc-last-activity" class="text-muted">Wird geladen...</span>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline-primary" id="refresh-nfc-status">
+                    <i class="fas fa-sync-alt me-1"></i>Status aktualisieren
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Variablen für die Verwendung in AJAX-Funktionen
+var userRole = "{{ session.role }}";
+var currentPage = {{ page|default(1) }};
+
+// Aktualisierungsfunktion für die Seite
+function refreshPage(page) {
+    fetch('/get_card_scans?page=' + page)
+        .then(response => response.json())
+        .then(data => {
+            refreshScans(data);
+        });
+}
+
+// Funktion zum Laden einer bestimmten Seite
+function loadPage(page) {
+    // Update currentPage Variable
+    currentPage = page;
+
+    // Update URL in browser address bar without reloading the page
+    const url = new URL(window.location);
+    url.searchParams.set('page', page);
+    window.history.pushState({page: page}, '', url);
+
+    // Load the page content
+    refreshPage(page);
+}
+
+// Funktion zum Aktualisieren der Scan-Tabelle
+function refreshScans(data) {
+    const scans = data.scans || data;
+    const container = document.getElementById('scans-container');
+
+    // Update currentPage from response data to keep it in sync
+    if (data.page) {
+        currentPage = data.page;
+    }
+    
+    if (!scans || scans.length === 0) {
+        container.innerHTML = 
+            '<div class="text-center py-4 text-muted">' +
+            '<i class="fas fa-search fa-3x mb-3"></i>' +
+            '<p>Keine NFC-Kartenscans gefunden</p>' +
+            '</div>';
+        return;
+    }
+    
+    let html = '<div class="table-responsive">' +
+               '<table class="table table-striped table-hover">' +
+               '<thead>' +
+               '<tr>' +
+               '<th>Zeitpunkt</th>' +
+               '<th>Karte</th>' +
+               '<th>Ablaufdatum</th>' +
+               '<th>Status</th>' +
+               '</tr>' +
+               '</thead>' +
+               '<tbody>';
+    
+    for (let i = 0; i < scans.length; i++) {
+        const scan = scans[i];
+        let statusBadge = '';
+
+        if (scan.status === 'Permanent' || scan.status === 'Temporär') {
+            statusBadge = '<span class="badge bg-success">Gültig</span>';
+        } else {
+            statusBadge = '<span class="badge bg-danger">Ungültig</span>';
+        }
+
+        // PCI DSS COMPLIANT: Display masked PAN
+        let maskedPan = '****-****-****-****';
+        if (scan.pan_last4) {
+            maskedPan = '****-****-****-' + scan.pan_last4;
+        } else if (scan.pan && scan.pan.length > 4) {
+            // Legacy support for old plaintext data
+            maskedPan = '****-****-****-' + scan.pan.slice(-4);
+        } else if (scan.pan) {
+            maskedPan = scan.pan;
+        }
+
+        html += '<tr>' +
+                '<td>' + scan.timestamp + '</td>' +
+                '<td>' + maskedPan +
+                (scan.card_type ? ' <span class="badge bg-info">' + scan.card_type + '</span>' : '') + '</td>' +
+                '<td>' + (scan.expiry_date || '-') + '</td>' +
+                '<td>' + statusBadge + '</td>' +
+                '</tr>';
+    }
+    
+    html += '</tbody></table></div>';
+    
+    // Füge Paginierung hinzu, wenn Daten verfügbar sind
+    if (data.total_pages && data.total_pages > 1) {
+        html += '<nav aria-label="Seitennavigation für NFC-Kartenscans">' +
+                '<ul class="pagination justify-content-center">' +
+                '<li class="page-item ' + (data.page === 1 ? 'disabled' : '') + '">' +
+                '<a class="page-link" href="javascript:void(0)" onclick="loadPage(' + (data.page-1) + ')" aria-label="Vorherige">' +
+                '<span aria-hidden="true">&laquo;</span>' +
+                '</a>' +
+                '</li>';
+        
+        for (let p = 1; p <= data.total_pages; p++) {
+            html += '<li class="page-item ' + (p === data.page ? 'active' : '') + '">' +
+                    '<a class="page-link" href="javascript:void(0)" onclick="loadPage(' + p + ')">' + p + '</a>' +
+                    '</li>';
+        }
+        
+        html += '<li class="page-item ' + (data.page === data.total_pages ? 'disabled' : '') + '">' +
+                '<a class="page-link" href="javascript:void(0)" onclick="loadPage(' + (data.page+1) + ')" aria-label="Nächste">' +
+                '<span aria-hidden="true">&raquo;</span>' +
+                '</a>' +
+                '</li>' +
+                '</ul>' +
+                '</nav>' +
+                '<p class="text-center text-muted">Zeige ' + scans.length + ' von ' + data.total_scans + ' Einträgen</p>';
+    }
+    
+    container.innerHTML = html;
+}
+
+// Hilfsfunktion um Toast-Nachrichten anzuzeigen
+function showToast(type, title, message) {
+    alert(title + ": " + message);
+}
+
+// Beim Laden der Seite
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle browser back/forward buttons
+    window.addEventListener('popstate', function(event) {
+        if (event.state && event.state.page) {
+            currentPage = event.state.page;
+            refreshPage(currentPage);
+        }
+    });
+
+    // Auto-Update der Scans (every 10 seconds instead of 1 second to reduce load)
+    setInterval(function() {
+        refreshPage(currentPage);
+    }, 10000);
+    
+    // Manuelles Aktualisieren über den Button
+    document.getElementById('refresh-scans').addEventListener('click', function() {
+        refreshPage(currentPage);
+    });
+
+    // NFC-Status aktualisieren
+    function updateNFCStatus() {
+        fetch('/api/nfc/status')
+            .then(response => response.json())
+            .then(data => {
+                const statusBadge = document.getElementById('nfc-status-badge');
+                const connectionBadge = document.getElementById('nfc-connection-badge');
+                const lastActivity = document.getElementById('nfc-last-activity');
+                
+                if (data.success) {
+                    const status = data.status;
+                    
+                    // Status Badge
+                    if (status.active) {
+                        statusBadge.textContent = 'Aktiv';
+                        statusBadge.className = 'badge bg-success';
+                    } else {
+                        statusBadge.textContent = 'Inaktiv';
+                        statusBadge.className = 'badge bg-danger';
+                    }
+                    
+                    // Verbindung Badge
+                    if (status.connected) {
+                        connectionBadge.textContent = 'Verbunden';
+                        connectionBadge.className = 'badge bg-success';
+                    } else {
+                        connectionBadge.textContent = 'Getrennt';
+                        connectionBadge.className = 'badge bg-danger';
+                    }
+                    
+                    // Letzte Aktivität
+                    if (status.last_activity) {
+                        lastActivity.textContent = status.last_activity;
+                    } else {
+                        lastActivity.textContent = 'Keine Aktivität';
+                    }
+                } else {
+                    statusBadge.textContent = 'Fehler';
+                    statusBadge.className = 'badge bg-danger';
+                    connectionBadge.textContent = 'Unbekannt';
+                    connectionBadge.className = 'badge bg-secondary';
+                    lastActivity.textContent = 'Nicht verfügbar';
+                }
+            })
+            .catch(error => {
+                console.error('Fehler beim Laden des NFC-Status:', error);
+                const statusBadge = document.getElementById('nfc-status-badge');
+                const connectionBadge = document.getElementById('nfc-connection-badge');
+                const lastActivity = document.getElementById('nfc-last-activity');
+                
+                statusBadge.textContent = 'Fehler';
+                statusBadge.className = 'badge bg-danger';
+                connectionBadge.textContent = 'Fehler';
+                connectionBadge.className = 'badge bg-danger';
+                lastActivity.textContent = 'Fehler beim Laden';
+            });
+    }
+
+    // NFC-Status manuell aktualisieren
+    document.getElementById('refresh-nfc-status').addEventListener('click', updateNFCStatus);
+    
+    // Auto-Update des NFC-Status alle 5 Sekunden
+    setInterval(updateNFCStatus, 5000);
+    
+    // Initial update
+    refreshPage(currentPage);
+    updateNFCStatus();
+});
+</script>
+{% endblock %} 

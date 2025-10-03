@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}White-Label Konfiguration{% endblock %}
+{% block page_title %}White-Label Konfiguration{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-palette me-2"></i>Anpassung der Benutzeroberfläche
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('routes.update_whitelabel') }}" method="POST" enctype="multipart/form-data">
+                        <!-- Enable/Disable Toggle -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="enabled" name="enabled"
+                                           {% if config.enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="enabled">
+                                        <strong>White-Label aktivieren</strong>
+                                        <small class="text-muted d-block">
+                                            Aktiviert die benutzerdefinierten Einstellungen
+                                        </small>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <button type="button" class="btn btn-secondary" data-bs-toggle="modal"
+                                        data-bs-target="#resetModal">
+                                    <i class="fas fa-undo me-2"></i>Auf Standard zurücksetzen
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Branding Section -->
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Branding</h6>
+
+                                <div class="mb-3">
+                                    <label for="company_name" class="form-label">Firmenname</label>
+                                    <input type="text" class="form-control" id="company_name" name="company_name"
+                                           value="{{ config.company_name }}">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="logo_file" class="form-label">Logo</label>
+                                    <input type="file" class="form-control" id="logo_file" name="logo_file"
+                                           accept="image/png,image/jpeg,image/svg+xml">
+                                    <small class="text-muted">PNG, JPG oder SVG (max. 2MB)</small>
+                                    {% if config.logo_data or config.logo_path %}
+                                    <div class="mt-2">
+                                        <small>Aktuelles Logo:</small><br>
+                                        <img src="{{ whitelabel_manager.get_logo_url() }}" alt="Logo"
+                                             style="max-height: 50px; max-width: 200px;">
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="favicon_file" class="form-label">Favicon</label>
+                                    <input type="file" class="form-control" id="favicon_file" name="favicon_file"
+                                           accept="image/x-icon,image/png">
+                                    <small class="text-muted">ICO oder PNG (16x16 oder 32x32)</small>
+                                </div>
+                            </div>
+
+                            <!-- Colors Section -->
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Farben</h6>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="primary_color" class="form-label">Primärfarbe</label>
+                                        <div class="input-group">
+                                            <input type="color" class="form-control form-control-color"
+                                                   id="primary_color" name="primary_color"
+                                                   value="{{ config.primary_color }}">
+                                            <input type="text" class="form-control" value="{{ config.primary_color }}"
+                                                   onchange="document.getElementById('primary_color').value=this.value">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label for="secondary_color" class="form-label">Sekundärfarbe</label>
+                                        <div class="input-group">
+                                            <input type="color" class="form-control form-control-color"
+                                                   id="secondary_color" name="secondary_color"
+                                                   value="{{ config.secondary_color }}">
+                                            <input type="text" class="form-control" value="{{ config.secondary_color }}"
+                                                   onchange="document.getElementById('secondary_color').value=this.value">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label for="accent_color" class="form-label">Akzentfarbe</label>
+                                        <div class="input-group">
+                                            <input type="color" class="form-control form-control-color"
+                                                   id="accent_color" name="accent_color"
+                                                   value="{{ config.accent_color }}">
+                                            <input type="text" class="form-control" value="{{ config.accent_color }}"
+                                                   onchange="document.getElementById('accent_color').value=this.value">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label for="danger_color" class="form-label">Warnfarbe</label>
+                                        <div class="input-group">
+                                            <input type="color" class="form-control form-control-color"
+                                                   id="danger_color" name="danger_color"
+                                                   value="{{ config.danger_color }}">
+                                            <input type="text" class="form-control" value="{{ config.danger_color }}"
+                                                   onchange="document.getElementById('danger_color').value=this.value">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label for="header_bg_color" class="form-label">Header-Hintergrund</label>
+                                        <div class="input-group">
+                                            <input type="color" class="form-control form-control-color"
+                                                   id="header_bg_color" name="header_bg_color"
+                                                   value="{{ config.header_bg_color }}">
+                                            <input type="text" class="form-control" value="{{ config.header_bg_color }}"
+                                                   onchange="document.getElementById('header_bg_color').value=this.value">
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label for="sidebar_bg_color" class="form-label">Sidebar-Hintergrund</label>
+                                        <div class="input-group">
+                                            <input type="color" class="form-control form-control-color"
+                                                   id="sidebar_bg_color" name="sidebar_bg_color"
+                                                   value="{{ config.sidebar_bg_color }}">
+                                            <input type="text" class="form-control" value="{{ config.sidebar_bg_color }}"
+                                                   onchange="document.getElementById('sidebar_bg_color').value=this.value">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="row">
+                            <!-- Text Customization -->
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Text-Anpassungen</h6>
+
+                                <div class="mb-3">
+                                    <label for="login_page_title" class="form-label">Login-Seite Titel</label>
+                                    <input type="text" class="form-control" id="login_page_title"
+                                           name="login_page_title" value="{{ config.login_page_title }}">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="login_page_subtitle" class="form-label">Login-Seite Untertitel</label>
+                                    <input type="text" class="form-control" id="login_page_subtitle"
+                                           name="login_page_subtitle" value="{{ config.login_page_subtitle }}">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="dashboard_title" class="form-label">Dashboard Titel</label>
+                                    <input type="text" class="form-control" id="dashboard_title"
+                                           name="dashboard_title" value="{{ config.dashboard_title }}">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="footer_text" class="form-label">Footer-Text</label>
+                                    <input type="text" class="form-control" id="footer_text"
+                                           name="footer_text" value="{{ config.footer_text }}"
+                                           placeholder="© 2024 Ihre Firma">
+                                </div>
+                            </div>
+
+                            <!-- Advanced -->
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Erweitert</h6>
+
+                                <div class="mb-3">
+                                    <label for="font_family" class="form-label">Schriftart</label>
+                                    <select class="form-select" id="font_family" name="font_family">
+                                        <option value="Inter, sans-serif" {% if config.font_family == "Inter, sans-serif" %}selected{% endif %}>Inter</option>
+                                        <option value="Arial, sans-serif" {% if config.font_family == "Arial, sans-serif" %}selected{% endif %}>Arial</option>
+                                        <option value="'Helvetica Neue', sans-serif" {% if config.font_family == "'Helvetica Neue', sans-serif" %}selected{% endif %}>Helvetica Neue</option>
+                                        <option value="'Segoe UI', sans-serif" {% if config.font_family == "'Segoe UI', sans-serif" %}selected{% endif %}>Segoe UI</option>
+                                        <option value="'Open Sans', sans-serif" {% if config.font_family == "'Open Sans', sans-serif" %}selected{% endif %}>Open Sans</option>
+                                        <option value="'Roboto', sans-serif" {% if config.font_family == "'Roboto', sans-serif" %}selected{% endif %}>Roboto</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="custom_css" class="form-label">Benutzerdefiniertes CSS</label>
+                                    <textarea class="form-control" id="custom_css" name="custom_css"
+                                              rows="5" placeholder=".custom-class { color: red; }">{{ config.custom_css }}</textarea>
+                                    <small class="text-muted">Zusätzliche CSS-Regeln für erweiterte Anpassungen</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-end mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Einstellungen speichern
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Preview Section -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">Vorschau</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Buttons</h6>
+                            <button class="btn btn-primary me-2">Primär</button>
+                            <button class="btn btn-secondary me-2">Sekundär</button>
+                            <button class="btn btn-success me-2">Erfolg</button>
+                            <button class="btn btn-danger me-2">Gefahr</button>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Badges</h6>
+                            <span class="badge bg-primary me-2">Primär</span>
+                            <span class="badge bg-secondary me-2">Sekundär</span>
+                            <span class="badge bg-success me-2">Erfolg</span>
+                            <span class="badge bg-danger">Gefahr</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Confirmation Modal -->
+<div class="modal fade" id="resetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Einstellungen zurücksetzen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Sind Sie sicher, dass Sie alle White-Label-Einstellungen auf die Standardwerte zurücksetzen möchten?</p>
+                <p class="text-danger">Diese Aktion kann nicht rückgängig gemacht werden!</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <form action="{{ url_for('routes.reset_whitelabel') }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-danger">Zurücksetzen</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Sync color pickers with text inputs
+    document.querySelectorAll('input[type="color"]').forEach(picker => {
+        picker.addEventListener('change', function() {
+            const textInput = this.parentElement.querySelector('input[type="text"]');
+            if (textInput) {
+                textInput.value = this.value;
+            }
+        });
+    });
+
+    document.querySelectorAll('.input-group input[type="text"]').forEach(textInput => {
+        textInput.addEventListener('change', function() {
+            const colorPicker = this.parentElement.querySelector('input[type="color"]');
+            if (colorPicker && /^#[0-9A-F]{6}$/i.test(this.value)) {
+                colorPicker.value = this.value;
+            }
+        });
+    });
+</script>
+{% endblock %}

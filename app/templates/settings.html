@@ -1,0 +1,1614 @@
+{% extends "base.html" %}
+
+{% block title %}Einstellungen{% endblock %}
+{% block page_title %}Einstellungen{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Systemeinstellungen</h5>
+        </div>
+        <div class="card-body">
+            <!-- Mobile Dropdown Navigation -->
+            <div class="tab-dropdown">
+                <select class="form-select" id="settingsDropdown" onchange="switchTab(this.value)">
+                    <option value="door-settings">🚪 Tür-Einstellungen</option>
+                    <option value="security-settings">🔒 Sicherheit</option>
+                    <option value="integrations-settings">🔌 Integrationen</option>
+                    <option value="manual-controls">✋ Manuelle Steuerung</option>
+                    <option value="network-settings">🌐 Netzwerk</option>
+                </select>
+            </div>
+
+            <!-- Desktop Navigation tabs (horizontal) -->
+            <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="door-tab" data-bs-toggle="tab" data-bs-target="#door-settings" type="button" role="tab" aria-controls="door-settings" aria-selected="true">
+                        <i class="fas fa-door-open me-2"></i>Tür-Einstellungen
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security-settings" type="button" role="tab" aria-controls="security-settings" aria-selected="false">
+                        <i class="fas fa-shield-alt me-2"></i>Sicherheit
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="integrations-tab" data-bs-toggle="tab" data-bs-target="#integrations-settings" type="button" role="tab" aria-controls="integrations-settings" aria-selected="false">
+                        <i class="fas fa-plug me-2"></i>Integrationen
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-controls" type="button" role="tab" aria-controls="manual-controls" aria-selected="false">
+                        <i class="fas fa-hand-pointer me-2"></i>Manuelle Steuerung
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="network-tab" data-bs-toggle="tab" data-bs-target="#network-settings" type="button" role="tab" aria-controls="network-settings" aria-selected="false">
+                        <i class="fas fa-network-wired me-2"></i>Netzwerk
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab content -->
+            <div class="tab-content mt-4" id="settingsTabsContent">
+
+                <!-- Door Settings Tab -->
+                <div class="tab-pane fade show active" id="door-settings" role="tabpanel" aria-labelledby="door-tab">
+                    <form action="{{ url_for('routes.update_settings') }}" method="POST">
+                        <input type="hidden" name="active_tab" id="active_tab_door" value="door-settings">
+                        <div class="settings-grid-2">
+                            <!-- Basic Door Configuration -->
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <i class="fas fa-door-open"></i>
+                                    <span>Tür-Konfiguration</span>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="door_open_time" class="form-label">Türöffnungszeit</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="door_open_time" name="door_open_time" min="0.5" max="10" step="0.1" value="{{ door_open_time }}">
+                                        <span class="input-group-text">Sekunden</span>
+                                    </div>
+                                    <div class="form-text">Zeitdauer für Relais-Aktivierung</div>
+                                </div>
+                            </div>
+
+                            <!-- SentraSupport System Control - Always visible for sentrasupport -->
+                            {% if session.username == 'sentrasupport' %}
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <i class="fas fa-shield-alt"></i>
+                                    <span>System-Level Control</span>
+                                </div>
+                                <div class="alert alert-danger">
+                                    <i class="fas fa-shield-alt me-1"></i>
+                                    <strong>SentraSupport-Admin:</strong> System-Level Barcode Control
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="barcode_visibility_enabled" name="barcode_visibility_enabled" {% if barcode_visibility_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="barcode_visibility_enabled">
+                                        Barcode-Funktionalität aktiviert
+                                    </label>
+                                </div>
+                                <div class="form-text text-danger">
+                                    <strong>Warnung:</strong> Deaktiviert alle Barcode-Features systemweit für ALLE Benutzer!<br>
+                                    Diese Einstellung ist nur für reine NFC-Installationen gedacht.
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Security Bypass Settings -->
+                            {% if barcode_visibility_enabled %}
+                            <div class="settings-card">
+                                <div class="settings-card-header">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <span>Sicherheits-Bypass</span>
+                                </div>
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    <strong>Achtung:</strong> Nur für Testzwecke verwenden!
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="allow_all_barcodes" name="allow_all_barcodes" {% if allow_all_barcodes %}checked{% endif %}>
+                                        <label class="form-check-label" for="allow_all_barcodes">
+                                            Alle Barcodes erlauben
+                                        </label>
+                                    </div>
+                                    <div class="form-text">Alle gescannten Barcodes werden akzeptiert</div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Einstellungen speichern
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Security Tab -->
+                <div class="tab-pane fade" id="security-settings" role="tabpanel" aria-labelledby="security-tab">
+                    <div class="settings-grid-2">
+                        <!-- Password Change Section -->
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <i class="fas fa-key"></i>
+                                <span>Passwort ändern</span>
+                            </div>
+                            <form action="{{ url_for('routes.change_password') }}" method="POST">
+                                <input type="hidden" name="active_tab" value="security-settings">
+                                <div class="mb-3">
+                                    <label for="current_password" class="form-label">Aktuelles Passwort</label>
+                                    <input type="password" class="form-control" id="current_password" name="current_password" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="new_password" class="form-label">Neues Passwort</label>
+                                    <input type="password" class="form-control" id="new_password" name="new_password" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="confirm_password" class="form-label">Passwort bestätigen</label>
+                                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                                </div>
+
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-key me-2"></i>Passwort ändern
+                                </button>
+                            </form>
+                        </div>
+
+                        {% if session.role == 'admin' %}
+                        <!-- Admin Account Management -->
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <i class="fas fa-user-shield"></i>
+                                <span>Admin-Konto-Verwaltung</span>
+                            </div>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Verwalten Sie hier den Admin-Benutzernamen für das System
+                            </div>
+                            <form action="{{ url_for('routes.update_settings') }}" method="POST">
+                                <input type="hidden" name="active_tab" value="security-settings">
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">Admin-Benutzername</label>
+                                    <input type="text" class="form-control" id="username" name="username" value="{{ username }}">
+                                    <div class="form-text">Der Benutzername für administrative Anmeldung</div>
+                                </div>
+
+                                <button type="submit" class="btn btn-warning">
+                                    <i class="fas fa-user-edit me-2"></i>Benutzername aktualisieren
+                                </button>
+                            </form>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Integrations Tab -->
+                <div class="tab-pane fade" id="integrations-settings" role="tabpanel" aria-labelledby="integrations-tab">
+                    <form action="{{ url_for('routes.update_settings') }}" method="POST">
+                        <input type="hidden" name="active_tab" id="active_tab_integrations" value="integrations-settings">
+                        <h6 class="text-primary mb-3"><i class="fas fa-webhook me-2"></i>Webhook-Konfiguration</h6>
+
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="webhook_enabled" name="webhook_enabled" {% if webhook_enabled %}checked{% endif %}>
+                                        <label class="form-check-label" for="webhook_enabled">
+                                            <strong>Webhooks aktiviert</strong>
+                                        </label>
+                                    </div>
+                                    <div class="form-text text-info">
+                                        <i class="fas fa-info-circle"></i>
+                                        Aktiviert HTTP-Aufrufe bei erfolgreichen Scans (z.B. für Axis-Lautsprecher)
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="webhook_timeout" class="form-label">Webhook Timeout</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="webhook_timeout" name="webhook_timeout" min="1" max="30" value="{{ webhook_timeout }}">
+                                        <span class="input-group-text">Sekunden</span>
+                                    </div>
+                                    <div class="form-text">Maximale Wartezeit für Webhook-Aufrufe (1-30 Sekunden)</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="nfc_webhook_url" class="form-label">NFC-Webhook URL</label>
+                                    <div class="input-group">
+                                        <input type="url" class="form-control" id="nfc_webhook_url" name="nfc_webhook_url" value="{{ nfc_webhook_url }}" placeholder="http://192.168.1.100/axis-cgi/playclip.cgi">
+                                        <button class="btn btn-outline-primary" type="button" onclick="testWebhook('nfc')">
+                                            <i class="fas fa-play"></i> Test
+                                        </button>
+                                    </div>
+                                    <div class="form-text">URL die bei erfolgreichem NFC-Kartenscan aufgerufen wird (GET-Request)</div>
+                                </div>
+
+                                {% if barcode_visibility_enabled %}
+                                <div class="mb-3">
+                                    <label for="barcode_webhook_url" class="form-label">Barcode-Webhook URL</label>
+                                    <div class="input-group">
+                                        <input type="url" class="form-control" id="barcode_webhook_url" name="barcode_webhook_url" value="{{ barcode_webhook_url }}" placeholder="http://192.168.1.100/axis-cgi/playclip.cgi">
+                                        <button class="btn btn-outline-primary" type="button" onclick="testWebhook('barcode')">
+                                            <i class="fas fa-play"></i> Test
+                                        </button>
+                                    </div>
+                                    <div class="form-text">URL die bei erfolgreichem Barcode-Scan aufgerufen wird (GET-Request)</div>
+                                </div>
+                                {% endif %}
+
+                                <hr class="my-4">
+                                <h6 class="text-primary mb-3"><i class="fas fa-shield-alt me-2"></i>Authentifizierung</h6>
+
+                                <div class="mb-3">
+                                    <label for="webhook_auth_type" class="form-label">Authentifizierungstyp</label>
+                                    <select class="form-select" id="webhook_auth_type" name="webhook_auth_type">
+                                        <option value="none" {% if webhook_auth_type == 'none' %}selected{% endif %}>Keine Authentifizierung</option>
+                                        <option value="basic" {% if webhook_auth_type == 'basic' %}selected{% endif %}>HTTP Basic Auth</option>
+                                        <option value="digest" {% if webhook_auth_type == 'digest' %}selected{% endif %}>HTTP Digest Auth</option>
+                                    </select>
+                                    <div class="form-text">Authentifizierungsmethode für Webhook-Aufrufe (z.B. für Axis-Lautsprecher)</div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="webhook_auth_user" class="form-label">Benutzername</label>
+                                            <input type="text" class="form-control" id="webhook_auth_user" name="webhook_auth_user" value="{{ webhook_auth_user }}" placeholder="root">
+                                            <div class="form-text">Benutzername für Authentifizierung</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="webhook_auth_password" class="form-label">Passwort</label>
+                                            <input type="password" class="form-control" id="webhook_auth_password" name="webhook_auth_password" value="{{ webhook_auth_password }}" placeholder="Passwort eingeben">
+                                            <div class="form-text">Passwort für Authentifizierung</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr class="my-4">
+                                <h6 class="text-primary mb-3"><i class="fas fa-clock me-2"></i>Timing-Einstellungen</h6>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="nfc_webhook_delay" class="form-label">NFC-Webhook Delay</label>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control" id="nfc_webhook_delay" name="nfc_webhook_delay" min="0" max="30" step="0.1" value="{{ nfc_webhook_delay }}">
+                                                <span class="input-group-text">Sekunden</span>
+                                            </div>
+                                            <div class="form-text">Verzögerung vor NFC-Webhook-Aufruf (0-30 Sekunden)</div>
+                                        </div>
+                                    </div>
+                                    {% if barcode_visibility_enabled %}
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="barcode_webhook_delay" class="form-label">Barcode-Webhook Delay</label>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control" id="barcode_webhook_delay" name="barcode_webhook_delay" min="0" max="30" step="0.1" value="{{ barcode_webhook_delay }}">
+                                                <span class="input-group-text">Sekunden</span>
+                                            </div>
+                                            <div class="form-text">Verzögerung vor Barcode-Webhook-Aufruf (0-30 Sekunden)</div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Timing-Info:</strong> Mit 0 Sekunden wird der Webhook sofort ausgelöst.
+                                    Höhere Werte verzögern die Ansage entsprechend.
+                                </div>
+
+                                <div class="alert alert-info">
+                                    <i class="fas fa-lightbulb me-2"></i>
+                                    <strong>Axis-Lautsprecher Beispiel:</strong><br>
+                                    <code>http://IP-ADRESSE/axis-cgi/playclip.cgi?location=Ansage.mp3&amp;volume=50</code><br>
+                                    <small class="text-muted">Die System-Parameter (type, timestamp, etc.) werden automatisch als GET-Parameter hinzugefügt.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Webhook-Einstellungen speichern
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Manual Controls Tab -->
+                <div class="tab-pane fade" id="manual-controls" role="tabpanel" aria-labelledby="manual-tab">
+                    <div class="settings-grid-2">
+                        <!-- Türsteuerung -->
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <i class="fas fa-toggle-on"></i>
+                                <span>Türsteuerung</span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Status des Türrelais</label>
+                                <div class="d-flex align-items-center">
+                                    <span id="gpio-indicator" class="me-2">
+                                        <span class="status-indicator inactive"></span>
+                                    </span>
+                                    <span id="gpio-status-text">Inaktiv</span>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Achtung:</strong> Diese Steuerung umgeht alle Sicherheitsprüfungen!
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <form action="{{ url_for('routes.open_door_route') }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="fas fa-door-open me-2"></i>Tür öffnen
+                                    </button>
+                                </form>
+                                <form action="{{ url_for('routes.close_door_route') }}" method="POST" class="d-inline mt-2">
+                                    <button type="submit" class="btn btn-danger w-100">
+                                        <i class="fas fa-door-closed me-2"></i>Tür schließen
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Information Panel -->
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <i class="fas fa-info-circle"></i>
+                                <span>Hinweise zur Steuerung</span>
+                            </div>
+                            <div class="mb-3">
+                                <strong class="text-primary">Tür öffnen:</strong>
+                                <p class="small mb-2">Aktiviert das Relais für die konfigurierte Türöffnungszeit.</p>
+                            </div>
+
+                            <div class="mb-3">
+                                <strong class="text-danger">Tür schließen:</strong>
+                                <p class="small mb-2">Deaktiviert das Relais sofort (Notfall-Funktion).</p>
+                            </div>
+
+                            <div class="alert alert-info">
+                                <i class="fas fa-clock me-1"></i>
+                                Der Tür-Status wird alle 2 Sekunden automatisch aktualisiert.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Tab -->
+                <div class="tab-pane fade" id="network-settings" role="tabpanel" aria-labelledby="network-tab">
+                    <!-- Reboot Notification Banner -->
+                    <div id="reboot-notification" class="alert alert-warning alert-dismissible fade show" style="display: none;" role="alert">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Neustart erforderlich!</strong>
+                                <span id="reboot-message">Die Netzwerk-Änderungen wurden gespeichert. Ein System-Neustart ist erforderlich, damit alle Änderungen wirksam werden.</span>
+                            </div>
+                            <button type="button" class="btn btn-danger btn-sm ms-3" onclick="performSystemReboot()">
+                                <i class="fas fa-power-off me-1"></i>Jetzt neu starten
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Timezone Configuration -->
+                    <div class="settings-grid-2 mb-4">
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <i class="fas fa-clock"></i>
+                                <span>Zeitzone</span>
+                            </div>
+                            <form action="{{ url_for('routes.update_timezone') }}" method="POST">
+                                <div class="mb-3">
+                                    <label for="timezone" class="form-label">System-Zeitzone</label>
+                                    <select class="form-select" id="timezone" name="timezone">
+                                        <!-- UTC Reference -->
+                                        <option value="UTC" {% if current_timezone == 'UTC' %}selected{% endif %}>UTC (GMT+0)</option>
+
+                                        <!-- Europe -->
+                                        <optgroup label="Europe">
+                                            <option value="Europe/Berlin" {% if current_timezone == 'Europe/Berlin' %}selected{% endif %}>Berlin (GMT+1)</option>
+                                            <option value="Europe/London" {% if current_timezone == 'Europe/London' %}selected{% endif %}>London (GMT+0)</option>
+                                            <option value="Europe/Paris" {% if current_timezone == 'Europe/Paris' %}selected{% endif %}>Paris (GMT+1)</option>
+                                            <option value="Europe/Madrid" {% if current_timezone == 'Europe/Madrid' %}selected{% endif %}>Madrid (GMT+1)</option>
+                                            <option value="Europe/Rome" {% if current_timezone == 'Europe/Rome' %}selected{% endif %}>Rome (GMT+1)</option>
+                                            <option value="Europe/Amsterdam" {% if current_timezone == 'Europe/Amsterdam' %}selected{% endif %}>Amsterdam (GMT+1)</option>
+                                            <option value="Europe/Vienna" {% if current_timezone == 'Europe/Vienna' %}selected{% endif %}>Vienna (GMT+1)</option>
+                                            <option value="Europe/Zurich" {% if current_timezone == 'Europe/Zurich' %}selected{% endif %}>Zurich (GMT+1)</option>
+                                            <option value="Europe/Warsaw" {% if current_timezone == 'Europe/Warsaw' %}selected{% endif %}>Warsaw (GMT+1)</option>
+                                            <option value="Europe/Moscow" {% if current_timezone == 'Europe/Moscow' %}selected{% endif %}>Moscow (GMT+3)</option>
+                                            <option value="Europe/Stockholm" {% if current_timezone == 'Europe/Stockholm' %}selected{% endif %}>Stockholm (GMT+1)</option>
+                                            <option value="Europe/Oslo" {% if current_timezone == 'Europe/Oslo' %}selected{% endif %}>Oslo (GMT+1)</option>
+                                            <option value="Europe/Copenhagen" {% if current_timezone == 'Europe/Copenhagen' %}selected{% endif %}>Copenhagen (GMT+1)</option>
+                                            <option value="Europe/Helsinki" {% if current_timezone == 'Europe/Helsinki' %}selected{% endif %}>Helsinki (GMT+2)</option>
+                                            <option value="Europe/Prague" {% if current_timezone == 'Europe/Prague' %}selected{% endif %}>Prague (GMT+1)</option>
+                                            <option value="Europe/Budapest" {% if current_timezone == 'Europe/Budapest' %}selected{% endif %}>Budapest (GMT+1)</option>
+                                            <option value="Europe/Athens" {% if current_timezone == 'Europe/Athens' %}selected{% endif %}>Athens (GMT+2)</option>
+                                            <option value="Europe/Istanbul" {% if current_timezone == 'Europe/Istanbul' %}selected{% endif %}>Istanbul (GMT+3)</option>
+                                        </optgroup>
+
+                                        <!-- Americas -->
+                                        <optgroup label="Americas">
+                                            <option value="America/New_York" {% if current_timezone == 'America/New_York' %}selected{% endif %}>New York (GMT-5)</option>
+                                            <option value="America/Chicago" {% if current_timezone == 'America/Chicago' %}selected{% endif %}>Chicago (GMT-6)</option>
+                                            <option value="America/Los_Angeles" {% if current_timezone == 'America/Los_Angeles' %}selected{% endif %}>Los Angeles (GMT-8)</option>
+                                            <option value="America/Toronto" {% if current_timezone == 'America/Toronto' %}selected{% endif %}>Toronto (GMT-5)</option>
+                                            <option value="America/Vancouver" {% if current_timezone == 'America/Vancouver' %}selected{% endif %}>Vancouver (GMT-8)</option>
+                                            <option value="America/Mexico_City" {% if current_timezone == 'America/Mexico_City' %}selected{% endif %}>Mexico City (GMT-6)</option>
+                                            <option value="America/Sao_Paulo" {% if current_timezone == 'America/Sao_Paulo' %}selected{% endif %}>São Paulo (GMT-3)</option>
+                                            <option value="America/Buenos_Aires" {% if current_timezone == 'America/Buenos_Aires' %}selected{% endif %}>Buenos Aires (GMT-3)</option>
+                                            <option value="America/Lima" {% if current_timezone == 'America/Lima' %}selected{% endif %}>Lima (GMT-5)</option>
+                                            <option value="America/Bogota" {% if current_timezone == 'America/Bogota' %}selected{% endif %}>Bogotá (GMT-5)</option>
+                                            <option value="America/Santiago" {% if current_timezone == 'America/Santiago' %}selected{% endif %}>Santiago (GMT-4)</option>
+                                        </optgroup>
+
+                                        <!-- Asia -->
+                                        <optgroup label="Asia">
+                                            <option value="Asia/Tokyo" {% if current_timezone == 'Asia/Tokyo' %}selected{% endif %}>Tokyo (GMT+9)</option>
+                                            <option value="Asia/Shanghai" {% if current_timezone == 'Asia/Shanghai' %}selected{% endif %}>Beijing/Shanghai (GMT+8)</option>
+                                            <option value="Asia/Singapore" {% if current_timezone == 'Asia/Singapore' %}selected{% endif %}>Singapore (GMT+8)</option>
+                                            <option value="Asia/Hong_Kong" {% if current_timezone == 'Asia/Hong_Kong' %}selected{% endif %}>Hong Kong (GMT+8)</option>
+                                            <option value="Asia/Dubai" {% if current_timezone == 'Asia/Dubai' %}selected{% endif %}>Dubai (GMT+4)</option>
+                                            <option value="Asia/Kolkata" {% if current_timezone == 'Asia/Kolkata' %}selected{% endif %}>Mumbai/Delhi (GMT+5:30)</option>
+                                            <option value="Asia/Seoul" {% if current_timezone == 'Asia/Seoul' %}selected{% endif %}>Seoul (GMT+9)</option>
+                                            <option value="Asia/Bangkok" {% if current_timezone == 'Asia/Bangkok' %}selected{% endif %}>Bangkok (GMT+7)</option>
+                                            <option value="Asia/Jakarta" {% if current_timezone == 'Asia/Jakarta' %}selected{% endif %}>Jakarta (GMT+7)</option>
+                                            <option value="Asia/Manila" {% if current_timezone == 'Asia/Manila' %}selected{% endif %}>Manila (GMT+8)</option>
+                                            <option value="Asia/Kuala_Lumpur" {% if current_timezone == 'Asia/Kuala_Lumpur' %}selected{% endif %}>Kuala Lumpur (GMT+8)</option>
+                                            <option value="Asia/Tehran" {% if current_timezone == 'Asia/Tehran' %}selected{% endif %}>Tehran (GMT+3:30)</option>
+                                            <option value="Asia/Riyadh" {% if current_timezone == 'Asia/Riyadh' %}selected{% endif %}>Riyadh (GMT+3)</option>
+                                            <option value="Asia/Karachi" {% if current_timezone == 'Asia/Karachi' %}selected{% endif %}>Karachi (GMT+5)</option>
+                                            <option value="Asia/Dhaka" {% if current_timezone == 'Asia/Dhaka' %}selected{% endif %}>Dhaka (GMT+6)</option>
+                                            <option value="Asia/Tashkent" {% if current_timezone == 'Asia/Tashkent' %}selected{% endif %}>Tashkent (GMT+5)</option>
+                                        </optgroup>
+
+                                        <!-- Pacific -->
+                                        <optgroup label="Pacific">
+                                            <option value="Australia/Sydney" {% if current_timezone == 'Australia/Sydney' %}selected{% endif %}>Sydney (GMT+10)</option>
+                                            <option value="Australia/Melbourne" {% if current_timezone == 'Australia/Melbourne' %}selected{% endif %}>Melbourne (GMT+10)</option>
+                                            <option value="Australia/Perth" {% if current_timezone == 'Australia/Perth' %}selected{% endif %}>Perth (GMT+8)</option>
+                                            <option value="Pacific/Auckland" {% if current_timezone == 'Pacific/Auckland' %}selected{% endif %}>Auckland (GMT+12)</option>
+                                            <option value="Pacific/Fiji" {% if current_timezone == 'Pacific/Fiji' %}selected{% endif %}>Fiji (GMT+12)</option>
+                                            <option value="Pacific/Honolulu" {% if current_timezone == 'Pacific/Honolulu' %}selected{% endif %}>Honolulu (GMT-10)</option>
+                                            <option value="Pacific/Guam" {% if current_timezone == 'Pacific/Guam' %}selected{% endif %}>Guam (GMT+10)</option>
+                                        </optgroup>
+
+                                        <!-- Africa -->
+                                        <optgroup label="Africa">
+                                            <option value="Africa/Cairo" {% if current_timezone == 'Africa/Cairo' %}selected{% endif %}>Cairo (GMT+2)</option>
+                                            <option value="Africa/Johannesburg" {% if current_timezone == 'Africa/Johannesburg' %}selected{% endif %}>Johannesburg (GMT+2)</option>
+                                            <option value="Africa/Lagos" {% if current_timezone == 'Africa/Lagos' %}selected{% endif %}>Lagos (GMT+1)</option>
+                                            <option value="Africa/Nairobi" {% if current_timezone == 'Africa/Nairobi' %}selected{% endif %}>Nairobi (GMT+3)</option>
+                                            <option value="Africa/Casablanca" {% if current_timezone == 'Africa/Casablanca' %}selected{% endif %}>Casablanca (GMT+1)</option>
+                                            <option value="Africa/Algiers" {% if current_timezone == 'Africa/Algiers' %}selected{% endif %}>Algiers (GMT+1)</option>
+                                            <option value="Africa/Tunis" {% if current_timezone == 'Africa/Tunis' %}selected{% endif %}>Tunis (GMT+1)</option>
+                                            <option value="Africa/Addis_Ababa" {% if current_timezone == 'Africa/Addis_Ababa' %}selected{% endif %}>Addis Ababa (GMT+3)</option>
+                                        </optgroup>
+                                    </select>
+                                    <div class="form-text">Zeitzone für zeitbasierte Türsteuerung und Protokollierung</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Aktuelle Systemzeit</label>
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-clock me-2"></i>
+                                        <span id="current-system-time">{{ current_time }}</span>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>Zeitzone speichern
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <i class="fas fa-info-circle"></i>
+                                <span>Zeitzone-Informationen</span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Wichtig für:</strong>
+                                <ul class="small">
+                                    <li>Zeitbasierte Türsteuerung (Öffnungszeiten)</li>
+                                    <li>Protokollierung und Ereignisse</li>
+                                    <li>Scan-Zeitstempel</li>
+                                    <li>Mode-Umschaltungen</li>
+                                </ul>
+                            </div>
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                Eine Änderung der Zeitzone wirkt sich sofort auf alle zeitbasierten Funktionen aus!
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Current Network Status -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-primary mb-3"><i class="fas fa-network-wired me-2"></i>Aktueller Netzwerk-Status</h6>
+                            <div id="network-status-loading" class="text-center">
+                                <i class="fas fa-spinner fa-spin me-2"></i>Lade Netzwerk-Informationen...
+                            </div>
+                            <div id="network-status-content" style="display: none;">
+                                <!-- Network interfaces will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Network Configuration -->
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <h6 class="text-primary mb-3"><i class="fas fa-cog me-2"></i>Netzwerk-Konfiguration</h6>
+
+                            <!-- Interface Selection -->
+                            <div class="mb-3">
+                                <label for="interface-select" class="form-label">Netzwerk-Interface</label>
+                                <select class="form-select" id="interface-select" onchange="loadInterfaceConfig()">
+                                    <option value="">Interface auswählen...</option>
+                                </select>
+                                <div class="form-text">Wählen Sie das zu konfigurierende Netzwerk-Interface aus.</div>
+                            </div>
+
+                            <!-- Configuration Form -->
+                            <form id="network-config-form" style="display: none;">
+                                <!-- DHCP/Static Toggle -->
+                                <div class="mb-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="dhcp-enabled" onchange="toggleNetworkMode()">
+                                        <label class="form-check-label" for="dhcp-enabled">
+                                            <strong>DHCP verwenden</strong>
+                                        </label>
+                                    </div>
+                                    <div class="form-text">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        DHCP erhält automatisch eine IP-Adresse vom Router. Deaktivieren für statische IP-Konfiguration.
+                                    </div>
+                                </div>
+
+                                <!-- Static IP Configuration -->
+                                <div id="static-config" style="display: none;">
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <strong>Achtung:</strong> Falsche Netzwerk-Einstellungen können den Fernzugriff auf das System unterbrechen!
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="static-ip" class="form-label">IP-Adresse <span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" id="static-ip" placeholder="192.168.1.100" pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$">
+                                                <div class="form-text">Statische IP-Adresse für dieses Gerät</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="static-netmask" class="form-label">Subnetzmaske <span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" id="static-netmask" placeholder="255.255.255.0" pattern="^(?:(?:255\.){3}(?:255|254|252|248|240|224|192|128|0))|(?:(?:255\.){2}(?:255|254|252|248|240|224|192|128|0)\.0)|(?:255\.(?:255|254|252|248|240|224|192|128|0)\.0\.0)|(?:(?:255|254|252|248|240|224|192|128|0)\.0\.0\.0)$">
+                                                <div class="form-text">Subnetzmaske des Netzwerks (meist 255.255.255.0)</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="static-gateway" class="form-label">Gateway <span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" id="static-gateway" placeholder="192.168.1.1" pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$">
+                                                <div class="form-text">IP-Adresse des Routers/Gateways</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="static-dns" class="form-label">DNS-Server</label>
+                                                <input type="text" class="form-control" id="static-dns" placeholder="8.8.8.8, 8.8.4.4">
+                                                <div class="form-text">DNS-Server (kommagetrennt, optional)</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="mt-4">
+                                    <button type="button" class="btn btn-primary" onclick="saveNetworkConfig()">
+                                        <i class="fas fa-save me-2"></i>Konfiguration speichern
+                                    </button>
+                                    <button type="button" class="btn btn-success ms-2" onclick="applyNetworkConfig()">
+                                        <i class="fas fa-play me-2"></i>Änderungen anwenden
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary ms-2" onclick="testNetworkConnectivity()">
+                                        <i class="fas fa-satellite-dish me-2"></i>Verbindung testen
+                                    </button>
+                                </div>
+                            </form>
+
+                            <!-- Help Section -->
+                            <div class="mt-4">
+                                <div class="card border-info">
+                                    <div class="card-header bg-info text-white">
+                                        <h6 class="mb-0"><i class="fas fa-question-circle me-2"></i>Hilfe</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <h6 class="text-primary">DHCP (empfohlen):</h6>
+                                            <p class="small mb-2">Das Gerät erhält automatisch eine IP-Adresse vom Router. Dies ist die einfachste Konfiguration.</p>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <h6 class="text-primary">Statische IP:</h6>
+                                            <p class="small mb-2">Das Gerät verwendet eine feste IP-Adresse. Nützlich für Server oder wenn eine gleichbleibende IP benötigt wird.</p>
+                                        </div>
+
+                                        <div class="alert alert-danger">
+                                            <small>
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                <strong>Wichtig:</strong> Bei Änderungen an der Netzwerk-Konfiguration können Sie den Zugriff auf das System verlieren. Stellen Sie sicher, dass Sie physischen Zugang zum Gerät haben!
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Network Tools -->
+                        <div class="col-lg-4">
+                            <div class="card border-secondary">
+                                <div class="card-header bg-secondary text-white">
+                                    <h6 class="mb-0"><i class="fas fa-tools me-2"></i>Netzwerk-Tools</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-outline-primary btn-sm" onclick="refreshNetworkStatus()">
+                                            <i class="fas fa-sync-alt me-2"></i>Status aktualisieren
+                                        </button>
+                                        <button class="btn btn-outline-info btn-sm" onclick="showNetworkDiagnostics()">
+                                            <i class="fas fa-stethoscope me-2"></i>Netzwerk-Diagnose
+                                        </button>
+                                        <button class="btn btn-outline-warning btn-sm" onclick="restartNetworking()">
+                                            <i class="fas fa-redo me-2"></i>Netzwerk neustarten
+                                        </button>
+                                        <button class="btn btn-danger btn-sm ms-2" onclick="performSystemReboot()">
+                                            <i class="fas fa-power-off me-2"></i>System neu starten
+                                        </button>
+                                    </div>
+
+                                    <hr class="my-3">
+
+                                    <div id="connectivity-test-result" style="display: none;">
+                                        <h6 class="text-info">Verbindungstest:</h6>
+                                        <div id="connectivity-status"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Professional Clean Design */
+    :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #34495e;
+        --accent-color: #3498db;
+        --success-color: #27ae60;
+        --warning-color: #f39c12;
+        --danger-color: #e74c3c;
+        --light-bg: #ecf0f1;
+        --card-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        --hover-shadow: 0 4px 8px rgba(0,0,0,0.12);
+    }
+
+    /* Horizontal tabs layout with professional styling */
+    .nav-tabs {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        border-bottom: 1px solid #dee2e6;
+        gap: 0;
+        padding-bottom: 0;
+        margin-bottom: 0;
+        background: linear-gradient(to bottom, #fff, #fafafa);
+        width: 100%;
+    }
+
+    .nav-tabs .nav-item {
+        display: inline-block !important;
+    }
+
+    .nav-tabs .nav-link {
+        white-space: nowrap;
+        color: var(--secondary-color);
+        border: none;
+        border-bottom: 3px solid transparent;
+        background: transparent;
+        padding: 1rem 1.5rem;
+        transition: all 0.2s ease;
+        font-weight: 500;
+        display: inline-block;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: var(--accent-color);
+        background-color: rgba(52, 152, 219, 0.05);
+        border-bottom-color: rgba(52, 152, 219, 0.3);
+    }
+
+    .nav-tabs .nav-link.active {
+        color: var(--primary-color);
+        background-color: #fff;
+        border-bottom: 3px solid var(--accent-color);
+        font-weight: 600;
+    }
+
+    /* Tab dropdown for mobile */
+    .tab-dropdown {
+        display: none;
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+        .nav-tabs {
+            display: none;
+        }
+        .tab-dropdown {
+            display: block;
+        }
+    }
+
+    .tab-content {
+        background-color: #fff;
+        border: 1px solid #dee2e6;
+        border-top: none;
+        border-radius: 0 0 0.375rem 0.375rem;
+        padding: 1.5rem;
+    }
+
+    /* Ensure status circles are properly aligned */
+    #gpio-indicator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Grid Layout System */
+    .settings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .settings-grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .settings-grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    @media (max-width: 992px) {
+        .settings-grid-2,
+        .settings-grid-3 {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Professional Card Styling */
+    .settings-card {
+        background: #fff;
+        border: 1px solid #e3e6f0;
+        border-radius: 8px;
+        padding: 1.5rem;
+        transition: all 0.2s ease;
+        box-shadow: var(--card-shadow);
+    }
+
+    .settings-card:hover {
+        box-shadow: var(--hover-shadow);
+        border-color: var(--accent-color);
+    }
+
+    .settings-card-header {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e3e6f0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .settings-card-header i {
+        color: var(--accent-color);
+        font-size: 1.1rem;
+    }
+
+    /* Professional Form Styling */
+    .form-control,
+    .form-select {
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+        transition: all 0.2s ease;
+        background-color: #fff;
+        font-size: 0.95rem;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 0.15rem rgba(52, 152, 219, 0.15);
+    }
+
+    /* Professional Button Styling */
+    .btn {
+        border-radius: 4px;
+        font-weight: 500;
+        padding: 0.6rem 1.2rem;
+        transition: all 0.2s ease;
+        border: none;
+    }
+
+    .btn-primary {
+        background-color: var(--accent-color);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background-color: #2980b9;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-success {
+        background-color: var(--success-color);
+        color: white;
+    }
+
+    .btn-danger {
+        background-color: var(--danger-color);
+        color: white;
+    }
+
+    .btn-warning {
+        background-color: var(--warning-color);
+        color: white;
+    }
+
+    /* Clean Alert Styling */
+    .alert {
+        border: none;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+
+    .alert-warning {
+        background-color: rgba(243, 156, 18, 0.1);
+        color: var(--warning-color);
+        border-left: 3px solid var(--warning-color);
+    }
+
+    .alert-info {
+        background-color: rgba(52, 152, 219, 0.1);
+        color: var(--accent-color);
+        border-left: 3px solid var(--accent-color);
+    }
+
+    /* Professional Form Switches */
+    .form-check-input {
+        width: 3em;
+        height: 1.5em;
+        cursor: pointer;
+    }
+
+    .form-check-input:checked {
+        background-color: var(--success-color);
+        border-color: var(--success-color);
+    }
+
+    .form-check-input:focus {
+        border-color: var(--accent-color);
+        outline: 0;
+        box-shadow: 0 0 0 0.15rem rgba(52, 152, 219, 0.15);
+    }
+
+    /* Status Indicators */
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 0.5rem;
+    }
+
+    .status-indicator.active {
+        background-color: var(--success-color);
+        box-shadow: 0 0 8px rgba(39, 174, 96, 0.5);
+    }
+
+    .status-indicator.inactive {
+        background-color: #95a5a6;
+    }
+
+    /* Subtle animations */
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.6; }
+        100% { opacity: 1; }
+    }
+
+    .loading {
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    /* Professional form labels */
+    .form-label {
+        font-weight: 500;
+        color: var(--primary-color);
+        font-size: 0.9rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .form-text {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+
+    /* Input groups */
+    .input-group-text {
+        background-color: var(--light-bg);
+        border: 1px solid #dee2e6;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Tab-Umschaltung via Dropdown
+    function switchTab(tabId) {
+        // Finde den entsprechenden Tab-Button
+        const tabButton = document.querySelector(`[data-bs-target="#${tabId}"]`);
+        if (tabButton) {
+            // Trigger Bootstrap Tab
+            const tab = new bootstrap.Tab(tabButton);
+            tab.show();
+        }
+    }
+
+    // Synchronisiere Dropdown mit aktiven Tabs
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabButtons = document.querySelectorAll('#settingsTabs button[data-bs-toggle="tab"]');
+        const dropdown = document.getElementById('settingsDropdown');
+
+        // Check if there's a hash in the URL to activate the correct tab
+        if (window.location.hash) {
+            const targetTab = window.location.hash.substring(1);
+            const tabButton = document.querySelector(`#settingsTabs button[data-bs-target="#${targetTab}"]`);
+            if (tabButton) {
+                const bsTab = new bootstrap.Tab(tabButton);
+                bsTab.show();
+                if (dropdown) {
+                    dropdown.value = targetTab;
+                }
+            }
+        }
+
+        tabButtons.forEach(button => {
+            button.addEventListener('shown.bs.tab', function(event) {
+                const targetId = event.target.getAttribute('data-bs-target').replace('#', '');
+                if (dropdown) {
+                    dropdown.value = targetId;
+                }
+                // Update the URL hash without jumping
+                history.replaceState(null, null, '#' + targetId);
+            });
+        });
+
+        // Set initial dropdown value if no hash was present
+        if (!window.location.hash) {
+            const activeTab = document.querySelector('#settingsTabs button.active');
+            if (activeTab && dropdown) {
+                const targetId = activeTab.getAttribute('data-bs-target').replace('#', '');
+                dropdown.value = targetId;
+            }
+        }
+    });
+
+    
+    // Tür-Status abrufen
+    function updateGpioStatus() {
+        fetch('{{ url_for("routes.gpio_status") }}')
+            .then(response => response.json())
+            .then(data => {
+                const gpioIndicator = document.getElementById('gpio-indicator');
+                const gpioStatusText = document.getElementById('gpio-status-text');
+
+                if (data.gpio_state === 1) {
+                    gpioIndicator.innerHTML = '<span class="status-indicator active"></span>';
+                    gpioStatusText.textContent = 'Aktiv (Tür geöffnet)';
+                    gpioStatusText.className = 'text-success';
+                } else {
+                    gpioIndicator.innerHTML = '<span class="status-indicator inactive"></span>';
+                    gpioStatusText.textContent = 'Inaktiv (Tür geschlossen)';
+                    gpioStatusText.className = 'text-secondary';
+                }
+            })
+            .catch(error => console.error('Fehler beim Abrufen des Tür-Status:', error));
+    }
+    
+    // Initialer Tür-Status und regelmäßiges Update
+    document.addEventListener('DOMContentLoaded', function() {
+        updateGpioStatus();
+        setInterval(updateGpioStatus, 2000); // Alle 2 Sekunden aktualisieren
+    });
+    
+    // Webhook-Test Funktion
+    function testWebhook(type) {
+        const button = document.querySelector(`button[onclick="testWebhook('${type}')"]`);
+        const originalText = button.innerHTML;
+        
+        // Button deaktivieren und Loading-Status zeigen
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Teste...';
+        
+        // Form-Daten sammeln
+        const formData = new FormData();
+        formData.append('webhook_type', type);
+        
+        fetch('{{ url_for("routes.test_webhook") }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Button wiederherstellen
+            button.disabled = false;
+            button.innerHTML = originalText;
+            
+            // Ergebnis anzeigen
+            if (data.success) {
+                // Erfolgreicher Test
+                button.classList.remove('btn-outline-primary');
+                button.classList.add('btn-success');
+                
+                // Toast/Alert für Erfolg
+                showWebhookResult(`✅ ${data.message}`, 'success', data);
+                
+                // Button nach 3 Sekunden zurücksetzen
+                setTimeout(() => {
+                    button.classList.remove('btn-success');
+                    button.classList.add('btn-outline-primary');
+                }, 3000);
+                
+            } else {
+                // Fehlgeschlagener Test
+                button.classList.remove('btn-outline-primary');
+                button.classList.add('btn-danger');
+                
+                // Toast/Alert für Fehler
+                showWebhookResult(`❌ ${data.message}`, 'error', data);
+                
+                // Button nach 5 Sekunden zurücksetzen
+                setTimeout(() => {
+                    button.classList.remove('btn-danger');
+                    button.classList.add('btn-outline-primary');
+                }, 5000);
+            }
+        })
+        .catch(error => {
+            // Button wiederherstellen
+            button.disabled = false;
+            button.innerHTML = originalText;
+            button.classList.remove('btn-outline-primary');
+            button.classList.add('btn-danger');
+            
+            showWebhookResult(`❌ Netzwerk-Fehler: ${error.message}`, 'error');
+            
+            // Button nach 5 Sekunden zurücksetzen
+            setTimeout(() => {
+                button.classList.remove('btn-danger');
+                button.classList.add('btn-outline-primary');
+            }, 5000);
+        });
+    }
+    
+    // Webhook-Test-Ergebnis anzeigen
+    function showWebhookResult(message, type, data = null) {
+        // Erstelle Alert
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const alertHtml = `
+            <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                <strong>${message}</strong>
+                ${data && data.status_code ? `<br><small>HTTP ${data.status_code}${data.response_time ? ` (${data.response_time})` : ''}</small>` : ''}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+
+        // Füge Alert zum Integrations-Tab hinzu
+        const integrationsTab = document.getElementById('integrations-settings');
+        if (integrationsTab) {
+            const webhookSection = integrationsTab.querySelector('h6.text-primary');
+            if (webhookSection) {
+                webhookSection.insertAdjacentHTML('afterend', alertHtml);
+
+                // Entferne Alert nach 10 Sekunden
+                setTimeout(() => {
+                    const alert = integrationsTab.querySelector(`.${alertClass}`);
+                    if (alert) {
+                        alert.remove();
+                    }
+                }, 10000);
+            }
+        }
+    }
+
+    // Network configuration variables
+    let currentNetworkData = {};
+    let selectedInterface = '';
+
+    // Auto-save toggle functionality
+    function initializeAutoSave() {
+        const toggleInputs = document.querySelectorAll('input[type="checkbox"].form-check-input');
+
+        toggleInputs.forEach(input => {
+            // Skip network toggle (has its own handler)
+            if (input.id === 'dhcp-enabled') return;
+
+            input.addEventListener('change', function() {
+                const formData = new FormData();
+                const inputName = this.name;
+                const inputValue = this.checked;
+
+                // Create minimal settings update
+                formData.append(inputName, inputValue ? 'on' : 'off');
+
+                // Show saving indicator
+                const label = this.nextElementSibling;
+                const originalText = label.innerHTML;
+                label.innerHTML = originalText + ' <i class="fas fa-spinner fa-spin text-info"></i>';
+
+                // Save via AJAX
+                fetch('/update_settings', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        // Success feedback
+                        label.innerHTML = originalText + ' <i class="fas fa-check text-success"></i>';
+                        setTimeout(() => {
+                            label.innerHTML = originalText;
+                        }, 2000);
+                    } else {
+                        throw new Error('Save failed');
+                    }
+                })
+                .catch(error => {
+                    // Error feedback
+                    label.innerHTML = originalText + ' <i class="fas fa-times text-danger"></i>';
+                    console.error('Auto-save error:', error);
+                    // Revert checkbox state
+                    this.checked = !inputValue;
+                    setTimeout(() => {
+                        label.innerHTML = originalText;
+                    }, 2000);
+                });
+            });
+        });
+    }
+
+    // Initialize auto-save when DOM is loaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeAutoSave);
+    } else {
+        initializeAutoSave();
+    }
+
+    // Network tab functions
+    function loadNetworkStatus() {
+        fetch('/api/network/interfaces')
+            .then(response => response.json())
+            .then(data => {
+                currentNetworkData = data;
+                displayNetworkStatus(data);
+                populateInterfaceSelect(data);
+                document.getElementById('network-status-loading').style.display = 'none';
+                document.getElementById('network-status-content').style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Failed to load network status:', error);
+                document.getElementById('network-status-loading').innerHTML =
+                    '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>Fehler beim Laden der Netzwerk-Informationen</div>';
+            });
+    }
+
+    function displayNetworkStatus(data) {
+        const content = document.getElementById('network-status-content');
+        let html = '<div class="row">';
+
+        for (const [name, iface] of Object.entries(data.interfaces || {})) {
+            const statusBadge = iface.is_connected ?
+                '<span class="badge bg-success">Verbunden</span>' :
+                '<span class="badge bg-secondary">Getrennt</span>';
+
+            const typeBadge = iface.interface_type === 'ethernet' ?
+                '<span class="badge bg-primary"><i class="fas fa-ethernet me-1"></i>Ethernet</span>' :
+                '<span class="badge bg-info"><i class="fas fa-wifi me-1"></i>WLAN</span>';
+
+            const modeText = iface.is_dhcp ? 'DHCP' : 'Statisch';
+
+            html += `
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">${name} ${typeBadge}</h6>
+                            <div class="mb-2">${statusBadge}</div>
+                            <table class="table table-sm">
+                                <tr><td><strong>IP-Adresse:</strong></td><td>${iface.ip_address || 'Keine'}</td></tr>
+                                <tr><td><strong>Modus:</strong></td><td>${modeText}</td></tr>
+                                <tr><td><strong>Gateway:</strong></td><td>${iface.gateway || 'Keine'}</td></tr>
+                                <tr><td><strong>MAC:</strong></td><td>${iface.mac_address || 'Unbekannt'}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += '</div>';
+        content.innerHTML = html;
+    }
+
+    function populateInterfaceSelect(data) {
+        const select = document.getElementById('interface-select');
+        select.innerHTML = '<option value="">Interface auswählen...</option>';
+
+        for (const [name, iface] of Object.entries(data.interfaces || {})) {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = `${name} (${iface.interface_type === 'ethernet' ? 'Ethernet' : 'WLAN'})`;
+            select.appendChild(option);
+        }
+    }
+
+    function loadInterfaceConfig() {
+        const select = document.getElementById('interface-select');
+        selectedInterface = select.value;
+
+        if (!selectedInterface) {
+            document.getElementById('network-config-form').style.display = 'none';
+            return;
+        }
+
+        // Load configuration for selected interface
+        fetch(`/api/network/config/${selectedInterface}`)
+            .then(response => response.json())
+            .then(data => {
+                populateConfigForm(data);
+                document.getElementById('network-config-form').style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Failed to load interface config:', error);
+                alert('Fehler beim Laden der Interface-Konfiguration');
+            });
+    }
+
+    function populateConfigForm(config) {
+        document.getElementById('dhcp-enabled').checked = config.is_dhcp;
+        document.getElementById('static-ip').value = config.static_ip || '';
+        document.getElementById('static-netmask').value = config.static_netmask || '';
+        document.getElementById('static-gateway').value = config.static_gateway || '';
+        document.getElementById('static-dns').value = (config.static_dns || []).join(', ');
+
+        toggleNetworkMode();
+    }
+
+    function toggleNetworkMode() {
+        const isDhcp = document.getElementById('dhcp-enabled').checked;
+        const staticConfig = document.getElementById('static-config');
+        staticConfig.style.display = isDhcp ? 'none' : 'block';
+    }
+
+    function saveNetworkConfig() {
+        if (!selectedInterface) {
+            alert('Bitte wählen Sie ein Interface aus.');
+            return;
+        }
+
+        const isDhcp = document.getElementById('dhcp-enabled').checked;
+        const config = {
+            interface: selectedInterface,
+            is_dhcp: isDhcp
+        };
+
+        if (!isDhcp) {
+            // Validate static configuration
+            const staticIp = document.getElementById('static-ip').value.trim();
+            const staticNetmask = document.getElementById('static-netmask').value.trim();
+            const staticGateway = document.getElementById('static-gateway').value.trim();
+
+            if (!staticIp || !staticNetmask || !staticGateway) {
+                alert('Bitte füllen Sie alle Pflichtfelder aus (IP, Netmask, Gateway).');
+                return;
+            }
+
+            config.static_ip = staticIp;
+            config.static_netmask = staticNetmask;
+            config.static_gateway = staticGateway;
+
+            // Parse DNS servers
+            const dnsInput = document.getElementById('static-dns').value.trim();
+            if (dnsInput) {
+                config.static_dns = dnsInput.split(',').map(dns => dns.trim()).filter(dns => dns);
+            }
+        }
+
+        // Save configuration
+        fetch('/api/network/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(config)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.reboot_required) {
+                    // Show reboot notification
+                    showRebootNotification(data.reboot_message || 'Ein System-Neustart ist erforderlich.');
+                    alert('Netzwerk-Konfiguration erfolgreich gespeichert!\n\n⚠️ WICHTIG: ' + (data.reboot_message || 'Ein System-Neustart ist erforderlich, damit die Änderungen wirksam werden.'));
+                } else {
+                    alert('Netzwerk-Konfiguration erfolgreich gespeichert!');
+                }
+            } else {
+                alert('Fehler beim Speichern: ' + (data.message || 'Unbekannter Fehler'));
+            }
+        })
+        .catch(error => {
+            console.error('Failed to save network config:', error);
+            alert('Fehler beim Speichern der Netzwerk-Konfiguration');
+        });
+    }
+
+    function applyNetworkConfig() {
+        if (confirm('Möchten Sie die Netzwerk-Änderungen jetzt anwenden? Dies kann zu einem kurzen Verbindungsabbruch führen.')) {
+            fetch('/api/network/apply', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.reboot_required) {
+                        // Show reboot notification
+                        showRebootNotification(data.reboot_message || 'Ein System-Neustart ist erforderlich.');
+                        alert('Netzwerk-Konfiguration wurde angewendet!\n\n⚠️ WICHTIG: ' + (data.reboot_message || 'Ein System-Neustart ist erforderlich, damit alle Änderungen vollständig wirksam werden.'));
+                    } else {
+                        alert('Netzwerk-Konfiguration wurde angewendet!');
+                    }
+                    setTimeout(() => {
+                        refreshNetworkStatus();
+                    }, 3000);
+                } else {
+                    alert('Fehler beim Anwenden: ' + (data.message || 'Unbekannter Fehler'));
+                }
+            })
+            .catch(error => {
+                console.error('Failed to apply network config:', error);
+                alert('Fehler beim Anwenden der Netzwerk-Konfiguration');
+            });
+        }
+    }
+
+    function testNetworkConnectivity() {
+        const resultDiv = document.getElementById('connectivity-test-result');
+        const statusDiv = document.getElementById('connectivity-status');
+
+        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Teste Verbindung...';
+        resultDiv.style.display = 'block';
+
+        fetch('/api/network/test_connectivity', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                statusDiv.innerHTML = '<span class="text-success"><i class="fas fa-check me-2"></i>Verbindung erfolgreich</span>';
+            } else {
+                statusDiv.innerHTML = '<span class="text-danger"><i class="fas fa-times me-2"></i>Verbindung fehlgeschlagen</span>';
+            }
+        })
+        .catch(error => {
+            console.error('Connectivity test failed:', error);
+            statusDiv.innerHTML = '<span class="text-danger"><i class="fas fa-times me-2"></i>Test fehlgeschlagen</span>';
+        });
+    }
+
+    function refreshNetworkStatus() {
+        document.getElementById('network-status-loading').style.display = 'block';
+        document.getElementById('network-status-content').style.display = 'none';
+        loadNetworkStatus();
+    }
+
+    function showNetworkDiagnostics() {
+        fetch('/api/network/diagnostics')
+            .then(response => response.json())
+            .then(data => {
+                let diagnosticsHtml = '<h6>Netzwerk-Diagnose:</h6>';
+                diagnosticsHtml += '<pre style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 12px;">';
+                diagnosticsHtml += data.diagnostics || 'Keine Diagnosedaten verfügbar';
+                diagnosticsHtml += '</pre>';
+
+                // Show in modal or alert
+                alert('Netzwerk-Diagnose:\n\n' + (data.diagnostics || 'Keine Diagnosedaten verfügbar'));
+            })
+            .catch(error => {
+                console.error('Failed to get diagnostics:', error);
+                alert('Fehler beim Abrufen der Netzwerk-Diagnose');
+            });
+    }
+
+    function restartNetworking() {
+        if (confirm('Möchten Sie das Netzwerk-System wirklich neu starten? Dies führt zu einem kurzen Verbindungsabbruch.')) {
+            fetch('/api/network/restart', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.reboot_recommended) {
+                        showRebootNotification(data.reboot_message || 'Ein vollständiger Neustart wird empfohlen.');
+                        alert('Netzwerk wird neu gestartet...\n\n' + (data.reboot_message || 'Ein vollständiger System-Neustart wird für optimale Konfiguration empfohlen.'));
+                    } else {
+                        alert('Netzwerk wird neu gestartet...');
+                    }
+                    setTimeout(() => {
+                        refreshNetworkStatus();
+                    }, 10000);
+                } else {
+                    alert('Fehler beim Neustart: ' + (data.message || 'Unbekannter Fehler'));
+                }
+            })
+            .catch(error => {
+                console.error('Failed to restart networking:', error);
+                alert('Fehler beim Neustart des Netzwerk-Systems');
+            });
+        }
+    }
+
+    // Update current system time
+    function updateSystemTime() {
+        const now = new Date();
+        const timeString = now.toLocaleString('de-DE', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            timeZoneName: 'short'
+        });
+        const timeElement = document.getElementById('current-system-time');
+        if (timeElement) {
+            timeElement.textContent = timeString;
+        }
+    }
+
+    // Function to show reboot notification
+    function showRebootNotification(message) {
+        const notification = document.getElementById('reboot-notification');
+        const messageSpan = document.getElementById('reboot-message');
+        if (notification && messageSpan) {
+            messageSpan.textContent = message;
+            notification.style.display = 'block';
+            // Scroll to top to make notification visible
+            notification.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    // Function to perform system reboot
+    function performSystemReboot() {
+        const confirmMsg = 'ACHTUNG: Das System wird SOFORT neu gestartet!\n\n' +
+                          'Alle ungespeicherten Änderungen gehen verloren.\n' +
+                          'Die Verbindung wird unterbrochen.\n\n' +
+                          'Möchten Sie das System jetzt neu starten?';
+
+        if (confirm(confirmMsg)) {
+            // Show countdown
+            const notification = document.getElementById('reboot-notification');
+            if (notification) {
+                notification.className = 'alert alert-danger';
+                notification.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin me-2"></i><strong>System wird neu gestartet...</strong><br>Bitte warten Sie 60 Sekunden und laden Sie dann die Seite neu.</div>';
+            }
+
+            fetch('/api/system/reboot', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Start countdown
+                    let seconds = 60;
+                    const countdownInterval = setInterval(() => {
+                        seconds--;
+                        if (notification) {
+                            notification.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin me-2"></i><strong>System startet neu...</strong><br>Automatische Weiterleitung in ' + seconds + ' Sekunden...</div>';
+                        }
+                        if (seconds <= 0) {
+                            clearInterval(countdownInterval);
+                            // Try to reload page
+                            window.location.reload();
+                        }
+                    }, 1000);
+                } else {
+                    alert('Fehler beim Neustart: ' + (data.error || 'Unbekannter Fehler'));
+                }
+            })
+            .catch(error => {
+                // Expected - connection will be lost during reboot
+                console.log('Verbindung verloren (erwartet während Neustart)');
+            });
+        }
+    }
+
+    // Load network status when the network tab is shown
+    document.addEventListener('DOMContentLoaded', function() {
+        // Update system time every second
+        updateSystemTime();
+        setInterval(updateSystemTime, 1000);
+
+        // Listen for tab changes
+        const networkTab = document.getElementById('network-tab');
+        if (networkTab) {
+            networkTab.addEventListener('click', function() {
+                // Load network status when tab is activated
+                setTimeout(() => {
+                    if (Object.keys(currentNetworkData).length === 0) {
+                        loadNetworkStatus();
+                    }
+                }, 100);
+            });
+        }
+
+        // Check if network tab should be opened from URL hash
+        if (window.location.hash === '#network-tab') {
+            setTimeout(() => {
+                networkTab?.click();
+            }, 100);
+        }
+    });
+</script>
+{% endblock %} 

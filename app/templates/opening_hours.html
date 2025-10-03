@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Türsteuerung{% endblock %}
+{% block page_title %}Zeitbasierte Türsteuerung{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Advanced Time-Based Door Control -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-door-open me-2"></i>Zeitbasierte Türsteuerung
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <!-- Door Control Mode Selection -->
+                        <div class="col-lg-8">
+                            <form action="{{ url_for('routes.update_door_control_config') }}" method="POST">
+                                <div class="mb-4">
+                                    <label for="door_control_mode" class="form-label">
+                                        <strong>Türsteuerungs-Modus</strong>
+                                    </label>
+                                    <select class="form-select" id="door_control_mode" name="door_control_mode" onchange="toggleModeSettings()">
+                                        <option value="always_normal" {% if door_config and door_config.mode == 'always_normal' %}selected{% endif %}>
+                                            Normalbetrieb
+                                        </option>
+                                        <option value="time_based" {% if door_config and door_config.mode == 'time_based' %}selected{% endif %}>
+                                            Zeitsteuerung
+                                        </option>
+                                        <option value="always_open" {% if door_config and door_config.mode == 'always_open' %}selected{% endif %}>
+                                            Daueroffen
+                                        </option>
+                                        <option value="always_closed" {% if door_config and door_config.mode == 'always_closed' %}selected{% endif %}>
+                                            Dauergeschlossen
+                                        </option>
+                                    </select>
+                                    <div class="form-text">Bestimmt das grundlegende Verhalten der Türsteuerung</div>
+                                </div>
+
+                                <!-- Time-Based Configuration -->
+                                <div id="time-based-config" style="{% if not door_config or door_config.mode != 'time_based' %}display: none;{% endif %}">
+                                    <h6 class="text-primary mb-3">Zeitbasierte Modi-Konfiguration</h6>
+
+                                    <!-- Always Open Mode -->
+                                    <div class="card border-success mb-3">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0">Mode 1: Always Open (Freier Zugang)</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        <label for="always_open_start" class="form-label">Start</label>
+                                                        <input type="time" class="form-control" id="always_open_start" name="always_open_start"
+                                                               value="{{ door_config.modes.always_open.start_time if door_config and door_config.modes else '08:00' }}">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        <label for="always_open_end" class="form-label">Ende</label>
+                                                        <input type="time" class="form-control" id="always_open_end" name="always_open_end"
+                                                               value="{{ door_config.modes.always_open.end_time if door_config and door_config.modes else '16:00' }}">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-check form-switch mt-4">
+                                                        <input class="form-check-input" type="checkbox" id="always_open_enabled"
+                                                               name="always_open_enabled" {% if door_config and door_config.modes and door_config.modes.always_open.enabled %}checked{% endif %}>
+                                                        <label class="form-check-label" for="always_open_enabled">
+                                                            <strong>Aktiviert</strong>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="alert alert-info">
+                                                <small>
+                                                    <i class="fas fa-info-circle me-1"></i>
+                                                    <strong>Verhalten:</strong> Tür bleibt dauerhaft offen. Keine NFC/Barcode-Scans nötig.
+                                                    Ideal für Geschäftszeiten mit vielen Minderjährigen ohne Bankkarten.
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Normal Operation Mode -->
+                                    <div class="card border-primary mb-3">
+                                        <div class="card-header bg-primary text-white">
+                                            <h6 class="mb-0">Mode 2: Normal Operation (Standard-Zugang)</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        <label for="normal_operation_start" class="form-label">Start</label>
+                                                        <input type="time" class="form-control" id="normal_operation_start" name="normal_operation_start"
+                                                               value="{{ door_config.modes.normal_operation.start_time if door_config and door_config.modes else '16:00' }}">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        <label for="normal_operation_end" class="form-label">Ende</label>
+                                                        <input type="time" class="form-control" id="normal_operation_end" name="normal_operation_end"
+                                                               value="{{ door_config.modes.normal_operation.end_time if door_config and door_config.modes else '04:00' }}">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-check form-switch mt-4">
+                                                        <input class="form-check-input" type="checkbox" id="normal_operation_enabled"
+                                                               name="normal_operation_enabled" {% if door_config and door_config.modes and door_config.modes.normal_operation.enabled %}checked{% endif %}>
+                                                        <label class="form-check-label" for="normal_operation_enabled">
+                                                            <strong>Aktiviert</strong>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="alert alert-primary">
+                                                <small>
+                                                    <i class="fas fa-info-circle me-1"></i>
+                                                    <strong>Verhalten:</strong> Tür standardmäßig geschlossen. {% if barcode_visibility_enabled %}NFC/Barcode-Scans{% else %}NFC-Scans{% endif %} öffnen die Tür temporär.
+                                                    Standard-Zugangskontrollen-Verhalten.
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Access Blocked Mode -->
+                                    <div class="card border-danger mb-3">
+                                        <div class="card-header bg-danger text-white">
+                                            <h6 class="mb-0">Mode 3: Access Blocked (Nur Ausgang)</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        <label for="access_blocked_start" class="form-label">Start</label>
+                                                        <input type="time" class="form-control" id="access_blocked_start" name="access_blocked_start"
+                                                               value="{{ door_config.modes.access_blocked.start_time if door_config and door_config.modes else '04:00' }}">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        <label for="access_blocked_end" class="form-label">Ende</label>
+                                                        <input type="time" class="form-control" id="access_blocked_end" name="access_blocked_end"
+                                                               value="{{ door_config.modes.access_blocked.end_time if door_config and door_config.modes else '08:00' }}">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="form-check form-switch mt-4">
+                                                        <input class="form-check-input" type="checkbox" id="access_blocked_enabled"
+                                                               name="access_blocked_enabled" {% if door_config and door_config.modes and door_config.modes.access_blocked.enabled %}checked{% endif %}>
+                                                        <label class="form-check-label" for="access_blocked_enabled">
+                                                            <strong>Aktiviert</strong>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="alert alert-warning">
+                                                <small>
+                                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                                    <strong>Verhalten:</strong> Tür bleibt geschlossen trotz NFC-Scans. NFC-Eingangs-Versuche werden abgelehnt.{% if barcode_visibility_enabled %}
+                                                    <span class="text-success"><strong>QR/Barcode-Ausgang bleibt funktional</strong> (Notfall/Reinigungspersonal).</span>{% endif %}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-save me-2"></i>Türsteuerungs-Modi speichern
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Current Status Display -->
+                        <div class="col-lg-4">
+                            <div class="card border-info">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Aktueller Status</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <strong>Aktiver Modus:</strong>
+                                        <div id="current-door-mode" class="badge bg-secondary">Lade...</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong>Tür-Status:</strong>
+                                        <div id="current-gpio-state" class="badge bg-secondary">Lade...</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong>Nächster Wechsel:</strong>
+                                        <div id="next-mode-change" class="badge bg-secondary">Berechne...</div>
+                                    </div>
+                                    <div class="text-center mt-3">
+                                        <button type="button" class="btn btn-outline-info btn-sm" onclick="refreshDoorStatus()">
+                                            <i class="fas fa-sync-alt me-1"></i>Status aktualisieren
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Toggle visibility of time-based configuration
+function toggleModeSettings() {
+    const modeSelect = document.getElementById('door_control_mode');
+    const timeBasedConfig = document.getElementById('time-based-config');
+
+    if (modeSelect.value === 'time_based') {
+        timeBasedConfig.style.display = 'block';
+    } else {
+        timeBasedConfig.style.display = 'none';
+    }
+}
+
+// Refresh door status display
+function refreshDoorStatus() {
+    const modeDiv = document.getElementById('current-door-mode');
+    const gpioDiv = document.getElementById('current-gpio-state');
+    const nextChangeDiv = document.getElementById('next-mode-change');
+
+    // Show loading state
+    modeDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Lade...';
+    gpioDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Lade...';
+    nextChangeDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Berechne...';
+
+    fetch('/api/door_status')
+        .then(response => response.json())
+        .then(data => {
+            // Update current mode
+            modeDiv.className = `badge ${getModeClass(data.current_mode)}`;
+            modeDiv.textContent = getModeDisplayName(data.current_mode);
+
+            // Update Tür state
+            gpioDiv.className = `badge ${data.gpio_state === 'HIGH' ? 'bg-success' : 'bg-secondary'}`;
+            gpioDiv.textContent = data.gpio_state === 'HIGH' ? 'Offen' : 'Geschlossen';
+
+            // Update next change
+            if (data.next_change) {
+                nextChangeDiv.className = 'badge bg-info';
+                nextChangeDiv.textContent = data.next_change;
+            } else {
+                nextChangeDiv.className = 'badge bg-secondary';
+                nextChangeDiv.textContent = 'Keine geplanten Änderungen';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching door status:', error);
+            modeDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Fehler';
+            gpioDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Fehler';
+            nextChangeDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Fehler';
+        });
+}
+
+// Get CSS class for mode badge
+function getModeClass(mode) {
+    switch(mode) {
+        case 'always_open': return 'bg-success';
+        case 'normal_operation': return 'bg-primary';
+        case 'access_blocked': return 'bg-danger';
+        case 'always_normal': return 'bg-info';
+        case 'always_closed': return 'bg-dark';
+        default: return 'bg-secondary';
+    }
+}
+
+// Get display name for mode
+function getModeDisplayName(mode) {
+    switch(mode) {
+        case 'always_open': return 'Always Open';
+        case 'normal_operation': return 'Normal Operation';
+        case 'access_blocked': return 'Access Blocked';
+        case 'always_normal': return 'Always Normal';
+        case 'always_closed': return 'Always Closed';
+        default: return 'Unbekannt';
+    }
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Refresh status on page load
+    refreshDoorStatus();
+
+    // Set up auto-refresh every 30 seconds
+    setInterval(refreshDoorStatus, 30000);
+
+    // Initialize mode toggle
+    toggleModeSettings();
+});
+</script>
+{% endblock %}
