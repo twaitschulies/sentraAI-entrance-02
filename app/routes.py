@@ -2397,8 +2397,23 @@ def recent_scans():
                     # No timestamp, use current time
                     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-                # Get PAN/card identifier (use card_uid as fallback)
-                pan = nfc_scan.get('pan') or nfc_scan.get('card_uid', 'Unbekannt')
+                # PCI DSS COMPLIANT: Use pan_hash for deduplication, pan_last4 for display
+                pan_hash = nfc_scan.get('pan_hash')
+                pan_last4 = nfc_scan.get('pan_last4')
+
+                # Legacy support: if no hash exists, it's old plaintext data
+                if not pan_hash and 'pan' in nfc_scan:
+                    pan = nfc_scan.get('pan', '')
+                    if pan and not is_hashed_pan(pan):
+                        # Convert legacy plaintext to hash+last4
+                        pan_hash = hash_pan(pan)
+                        pan_last4 = pan[-4:] if len(pan) >= 4 else pan
+
+                # Format PAN for display (PCI DSS compliant - masked)
+                if pan_last4:
+                    display_pan = f"****-{pan_last4}"
+                else:
+                    display_pan = "Unbekannt"
 
                 # Determine status (make it user-friendly)
                 status = nfc_scan.get('status', 'Erfolgreich')
@@ -2409,8 +2424,10 @@ def recent_scans():
 
                 formatted_scan = {
                     'timestamp': timestamp,
-                    'code': pan,  # Used by the table
-                    'pan': pan,
+                    'code': display_pan,  # Show masked PAN
+                    'pan': display_pan,   # Backward compatibility
+                    'pan_last4': pan_last4,  # ✅ NEW: Include pan_last4 for template
+                    'pan_hash': pan_hash,    # ✅ NEW: Include pan_hash for deduplication
                     'card_type': nfc_scan.get('card_type', 'NFC'),
                     'status': status,
                     'type': 'NFC'
