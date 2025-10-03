@@ -2376,11 +2376,21 @@ def recent_scans():
             nfc_scans = get_current_card_scans()
             logger.info(f"Raw NFC scans loaded: {len(nfc_scans)} scans")
 
+            # Deduplizierung: Track unique card hashes (same logic as dashboard())
+            seen_pan_hashes = set()
+
+            # Filter to only show scans from the last 5 minutes to avoid showing old/duplicate entries
+            from datetime import datetime, timedelta
+            five_minutes_ago = datetime.now() - timedelta(minutes=5)
+
+            # Sort scans by timestamp (newest first) for deduplication
+            nfc_scans_sorted = sorted(nfc_scans, key=lambda x: x.get('timestamp', ''), reverse=True)
+
             # Konvertiere NFC-Scans in einheitliches Format
-            from datetime import datetime
-            for nfc_scan in nfc_scans:
+            for nfc_scan in nfc_scans_sorted:
                 # Handle different timestamp formats
                 timestamp = nfc_scan.get('timestamp', '')
+                scan_time = None
                 if timestamp:
                     # Check if it's ISO format (from datetime.now().isoformat())
                     if 'T' in timestamp:
@@ -2388,14 +2398,26 @@ def recent_scans():
                             # Parse ISO format
                             dt = datetime.fromisoformat(timestamp)
                             timestamp = dt.strftime('%Y-%m-%d %H:%M:%S')
+                            scan_time = dt
                         except:
                             logger.debug(f"Failed to parse ISO timestamp: {timestamp}")
                             # Use current time as fallback
                             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    # Already in correct format, keep it
+                            scan_time = datetime.now()
+                    else:
+                        # Parse standard format
+                        try:
+                            scan_time = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+                        except:
+                            scan_time = datetime.now()
                 else:
                     # No timestamp, use current time
                     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    scan_time = datetime.now()
+
+                # Skip scans older than 5 minutes
+                if scan_time and scan_time < five_minutes_ago:
+                    continue
 
                 # PCI DSS COMPLIANT: Use pan_hash for deduplication, pan_last4 for display
                 pan_hash = nfc_scan.get('pan_hash')
@@ -2408,6 +2430,13 @@ def recent_scans():
                         # Convert legacy plaintext to hash+last4
                         pan_hash = hash_pan(pan)
                         pan_last4 = pan[-4:] if len(pan) >= 4 else pan
+
+                # DEDUPLICATION: Skip if we've already seen this card (same logic as dashboard())
+                if pan_hash and pan_hash in seen_pan_hashes:
+                    logger.debug(f"Skipping duplicate NFC scan with pan_hash: {pan_hash[:8]}...")
+                    continue
+                if pan_hash:
+                    seen_pan_hashes.add(pan_hash)
 
                 # Format PAN for display (PCI DSS compliant - masked)
                 if pan_last4:
@@ -2422,17 +2451,25 @@ def recent_scans():
                 elif status in ['NFC', 'Permanent', 'Temporär']:
                     status = 'Erfolgreich'
 
+                # Generate unique ID for frontend deduplication
+                unique_id = f"nfc-{pan_hash}" if pan_hash else f"nfc-{timestamp.replace(' ', '-').replace(':', '')}"
+
                 formatted_scan = {
+                    'id': unique_id,         # ✅ NEW: Unique ID for reliable frontend deduplication
                     'timestamp': timestamp,
                     'code': display_pan,  # Show masked PAN
                     'pan': display_pan,   # Backward compatibility
-                    'pan_last4': pan_last4,  # ✅ NEW: Include pan_last4 for template
-                    'pan_hash': pan_hash,    # ✅ NEW: Include pan_hash for deduplication
+                    'pan_last4': pan_last4,  # ✅ Include pan_last4 for template
+                    'pan_hash': pan_hash,    # ✅ Include pan_hash for deduplication
                     'card_type': nfc_scan.get('card_type', 'NFC'),
                     'status': status,
                     'type': 'NFC'
                 }
                 formatted_nfc_scans.append(formatted_scan)
+
+                # Limit to showing max 10 recent unique scans
+                if len(formatted_nfc_scans) >= 10:
+                    break
 
             logger.info(f"Formatted {len(formatted_nfc_scans)} NFC scans")
 
