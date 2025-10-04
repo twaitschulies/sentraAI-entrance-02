@@ -863,6 +863,7 @@ def dashboard():
             formatted_scan = {
                 'timestamp': scan.get('timestamp', '').split(' ')[1][:5] if ' ' in scan.get('timestamp', '') else scan.get('timestamp', '')[:5],  # Show only HH:MM
                 'code': f"NFC-{display_pan}",
+                'pan': display_pan,  # PCI DSS COMPLIANT: Masked PAN for template fallback
                 'status': scan.get('status', 'NFC-Karte'),
                 'scan_type': 'nfc',
                 'pan_last4': pan_last4,  # PCI DSS COMPLIANT: Only last 4 digits
@@ -870,10 +871,6 @@ def dashboard():
             }
 
             nfc_scans_formatted.append(formatted_scan)
-
-            # Limit to showing max 10 recent unique scans
-            if len(nfc_scans_formatted) >= 10:
-                break
 
         # Keep NFC and barcode scans separate to avoid duplication
         # NFC scans will be shown in their own section in dashboard
@@ -902,6 +899,7 @@ def dashboard():
     
     # Filter-Parameter
     page = request.args.get('page', 1, type=int)
+    nfc_page = request.args.get('nfc_page', 1, type=int)  # Separate pagination for NFC scans
     current_date = request.args.get('date', '')
     current_time_from = request.args.get('time_from', '')
     current_time_to = request.args.get('time_to', '')
@@ -964,6 +962,32 @@ def dashboard():
     except:
         card_scans_30_days = 0
 
+    # NFC Scans Pagination (7 entries per page as requested: 5-7 range)
+    nfc_scans_per_page = 7
+    total_nfc_scans = len(nfc_scans_formatted)
+    nfc_total_pages = (total_nfc_scans + nfc_scans_per_page - 1) // nfc_scans_per_page if total_nfc_scans > 0 else 1
+
+    # Validate nfc_page
+    if nfc_page < 1:
+        nfc_page = 1
+    elif nfc_page > nfc_total_pages and nfc_total_pages > 0:
+        nfc_page = nfc_total_pages
+
+    # Calculate NFC pagination range
+    nfc_start_idx = (nfc_page - 1) * nfc_scans_per_page
+    nfc_end_idx = min(nfc_start_idx + nfc_scans_per_page, total_nfc_scans)
+
+    # Create NFC page range for pagination display
+    if nfc_total_pages <= 5:
+        nfc_page_range = range(1, nfc_total_pages + 1)
+    else:
+        if nfc_page <= 3:
+            nfc_page_range = range(1, 6)
+        elif nfc_page >= nfc_total_pages - 2:
+            nfc_page_range = range(nfc_total_pages - 4, nfc_total_pages + 1)
+        else:
+            nfc_page_range = range(nfc_page - 2, nfc_page + 3)
+
     return render_template(
         'dashboard.html',
         scans=filtered_scans[start_idx:end_idx],
@@ -982,7 +1006,11 @@ def dashboard():
         current_time_to=current_time_to,
         current_validity=current_validity,
         barcode_visibility_enabled=barcode_visibility_enabled,
-        nfc_scans=nfc_scans_formatted[:10]  # Pass recent NFC scans to template
+        nfc_scans=nfc_scans_formatted[nfc_start_idx:nfc_end_idx],  # Paginated NFC scans (7 per page)
+        nfc_page=nfc_page,
+        nfc_total_pages=nfc_total_pages,
+        total_nfc_scans=total_nfc_scans,
+        nfc_page_range=nfc_page_range
     )
 
 @bp.route("/barcodes")
