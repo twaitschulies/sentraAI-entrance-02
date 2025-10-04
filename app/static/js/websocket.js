@@ -272,21 +272,21 @@ class GuardWebSocket {
             }
 
             if (tableType === 'nfc') {
-                // PCI DSS COMPLIANT: Consistent masked PAN display
+                // PCI DSS COMPLIANT: Consistent masked PAN display - Format: XXXX XXXX XXXX 2345
                 let maskedPanHTML = '<span class="masked-pan">';
                 if (scan.pan_last4) {
-                    maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
+                    maskedPanHTML += '<span class="pan-mask">XXXX</span> <span class="pan-mask">XXXX</span> <span class="pan-mask">XXXX</span> ' +
                                      '<span class="pan-visible">' + scan.pan_last4 + '</span>';
                 } else if (scan.pan && scan.pan.length > 4) {
                     const last4 = scan.pan.slice(-4);
-                    maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
+                    maskedPanHTML += '<span class="pan-mask">XXXX</span> <span class="pan-mask">XXXX</span> <span class="pan-mask">XXXX</span> ' +
                                      '<span class="pan-visible">' + last4 + '</span>';
                 } else if (scan.pan) {
-                    maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
+                    maskedPanHTML += '<span class="pan-mask">XXXX</span> <span class="pan-mask">XXXX</span> <span class="pan-mask">XXXX</span> ' +
                                      '<span class="pan-visible">' + scan.pan + '</span>';
                 } else {
-                    maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
-                                     '<span class="pan-mask">****</span>';
+                    maskedPanHTML += '<span class="pan-mask">XXXX</span> <span class="pan-mask">XXXX</span> <span class="pan-mask">XXXX</span> ' +
+                                     '<span class="pan-mask">XXXX</span>';
                 }
                 maskedPanHTML += '</span>';
 
@@ -298,12 +298,33 @@ class GuardWebSocket {
                 else if (cardType.includes('Sparkasse')) cardBadgeClass = 'bg-danger';
                 else if (cardType.includes('Visa')) cardBadgeClass = 'bg-primary';
 
+                // Status logic matching Jinja2 template
+                let statusBadge = '';
+                const status = scan.status || '';
+                const rejectionReason = scan.rejection_reason || '';
+
+                if (status === 'Permanent') {
+                    statusBadge = '<span class="badge bg-success">Gültig</span>';
+                } else if (status === 'Authorized') {
+                    statusBadge = '<span class="badge bg-success">Autorisiert</span>';
+                } else if (status === 'NFC-Karte') {
+                    statusBadge = '<span class="badge bg-primary">NFC-Karte</span>';
+                } else if (status === 'Temporär') {
+                    statusBadge = '<span class="badge bg-info">Temporär</span>';
+                } else if (status.includes('access_blocked') || rejectionReason === 'access_blocked') {
+                    statusBadge = '<span class="badge bg-danger">Abgelehnt</span>';
+                } else if (status.includes('Verweigert') || status === 'Ungültig') {
+                    statusBadge = '<span class="badge bg-danger">Ungültig</span>';
+                } else {
+                    statusBadge = '<span class="badge bg-warning">' + status + '</span>';
+                }
+
                 return `
                     <tr data-scan-id="${scan.scanId}">
                         <td>${shortTime}</td>
                         <td><span class="badge ${cardBadgeClass}">${cardType}</span></td>
                         <td>${maskedPanHTML}</td>
-                        <td><span class="badge ${this.getStatusClass(this.getDisplayStatus(scan.status))}">${this.getDisplayStatus(scan.status)}</span></td>
+                        <td>${statusBadge}</td>
                     </tr>
                 `;
             } else {
