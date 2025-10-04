@@ -2480,12 +2480,9 @@ def recent_scans():
                 else:
                     display_pan = "Unbekannt"
 
-                # Determine status (make it user-friendly)
+                # Keep original status - don't transform it
+                # The template handles the status display logic
                 status = nfc_scan.get('status', 'Erfolgreich')
-                if 'Verweigert' in status:
-                    status = 'Ungültig'
-                elif status in ['NFC', 'Permanent', 'Temporär']:
-                    status = 'Erfolgreich'
 
                 # Generate unique ID for frontend deduplication
                 unique_id = f"nfc-{pan_hash}" if pan_hash else f"nfc-{timestamp.replace(' ', '-').replace(':', '')}"

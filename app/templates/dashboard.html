@@ -262,8 +262,10 @@
                                             <span class="badge bg-primary">NFC-Karte</span>
                                         {% elif scan.status == "Temporär" %}
                                             <span class="badge bg-info">Temporär</span>
-                                        {% elif scan.status == "Ungültig" and scan.get('rejection_reason') == 'geschlossen' %}
+                                        {% elif 'access_blocked' in scan.status or scan.get('rejection_reason') == 'access_blocked' %}
                                             <span class="badge bg-danger">Abgelehnt</span>
+                                        {% elif "Verweigert" in scan.status or scan.status == "Ungültig" %}
+                                            <span class="badge bg-danger">Ungültig</span>
                                         {% else %}
                                             <span class="badge bg-warning">{{ scan.status }}</span>
                                         {% endif %}
