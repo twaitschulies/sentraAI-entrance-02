@@ -4,13 +4,18 @@
     <title>{% block title %}{% endblock %} - Zugangssystem</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Prevent browser caching of dynamic content -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     
     <!-- Kaiadmin CSS (Add your custom styles after) -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/kaiadmin.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/kaiadmin.css') }}?v=dc32727">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=dc32727">
     
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -482,9 +487,9 @@
 
     <!-- Bootstrap 5 JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <!-- Kaiadmin JS and custom scripts -->
-    <script src="{{ url_for('static', filename='js/kaiadmin.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/kaiadmin.js') }}?v=dc32727"></script>
     
     <script>
         // Auto-dismiss flash messages
