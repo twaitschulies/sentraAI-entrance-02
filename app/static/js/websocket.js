@@ -275,26 +275,21 @@ class GuardWebSocket {
 
                 // Unterschiedliche HTML für NFC und Barcode Tabellen
                 if (tableType === 'nfc') {
-                    // PCI DSS COMPLIANT: Modern masked PAN display
+                    // PCI DSS COMPLIANT: Consistent masked PAN display
                     let maskedPanHTML = '<span class="masked-pan">';
                     if (scan.pan_last4) {
-                        maskedPanHTML += '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
-                                         '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
-                                         '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                        maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
                                          '<span class="pan-visible">' + scan.pan_last4 + '</span>';
                     } else if (scan.pan && scan.pan.length > 4) {
                         const last4 = scan.pan.slice(-4);
-                        maskedPanHTML += '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
-                                         '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
-                                         '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                        maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
                                          '<span class="pan-visible">' + last4 + '</span>';
                     } else if (scan.pan) {
-                        maskedPanHTML += scan.pan;
+                        maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
+                                         '<span class="pan-visible">' + scan.pan + '</span>';
                     } else {
-                        maskedPanHTML += '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
-                                         '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
-                                         '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
-                                         '<span class="pan-mask">••••</span>';
+                        maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
+                                         '<span class="pan-mask">****</span>';
                     }
                     maskedPanHTML += '</span>';
 
