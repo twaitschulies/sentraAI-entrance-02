@@ -163,31 +163,6 @@
                             </form>
                         </div>
 
-                        {% if session.role == 'admin' %}
-                        <!-- Admin Account Management -->
-                        <div class="settings-card">
-                            <div class="settings-card-header">
-                                <i class="fas fa-user-shield"></i>
-                                <span>Admin-Konto-Verwaltung</span>
-                            </div>
-                            <div class="alert alert-info">
-                                <i class="fas fa-info-circle me-1"></i>
-                                Verwalten Sie hier den Admin-Benutzernamen für das System
-                            </div>
-                            <form action="{{ url_for('routes.update_settings') }}" method="POST">
-                                <input type="hidden" name="active_tab" value="security-settings">
-                                <div class="mb-3">
-                                    <label for="username" class="form-label">Admin-Benutzername</label>
-                                    <input type="text" class="form-control" id="username" name="username" value="{{ username }}">
-                                    <div class="form-text">Der Benutzername für administrative Anmeldung</div>
-                                </div>
-
-                                <button type="submit" class="btn btn-warning">
-                                    <i class="fas fa-user-edit me-2"></i>Benutzername aktualisieren
-                                </button>
-                            </form>
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
 
