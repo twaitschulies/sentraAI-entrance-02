@@ -40,8 +40,6 @@
                                             <td>
                                                 {% if user.role == 'admin' %}
                                                     <span class="badge bg-danger">Administrator</span>
-                                                {% elif user.role == 'manager' %}
-                                                    <span class="badge bg-warning">Manager</span>
                                                 {% else %}
                                                     <span class="badge bg-info">Mitarbeiter</span>
                                                 {% endif %}
@@ -125,7 +123,6 @@
                         <label for="role" class="form-label">Rolle</label>
                         <select class="form-select" id="role" name="role">
                             <option value="employee">Mitarbeiter</option>
-                            <option value="manager">Manager</option>
                             <option value="admin">Administrator</option>
                         </select>
                     </div>
@@ -170,7 +167,6 @@
                         <label for="edit-role" class="form-label">Rolle</label>
                         <select class="form-select" id="edit-role" name="role">
                             <option value="employee">Mitarbeiter</option>
-                            <option value="manager">Manager</option>
                             <option value="admin">Administrator</option>
                         </select>
                     </div>
