@@ -62,19 +62,19 @@ class SimpleDoorControlManager:
             "mode": "always_normal",  # Options: time_based, always_normal, always_open, always_closed
             "modes": {
                 "always_open": {
-                    "enabled": True,
+                    "enabled": False,  # Disabled by default - admin must explicitly enable
                     "start_time": "08:00",
                     "end_time": "16:00",
                     "days": ["monday", "tuesday", "wednesday", "thursday", "friday"]
                 },
                 "normal_operation": {
-                    "enabled": True,
+                    "enabled": False,  # Disabled by default when mode is "always_normal"
                     "start_time": "16:00",
                     "end_time": "04:00",
                     "days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
                 },
                 "access_blocked": {
-                    "enabled": True,
+                    "enabled": False,  # Disabled by default - admin must explicitly enable
                     "start_time": "04:00",
                     "end_time": "08:00",
                     "days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
