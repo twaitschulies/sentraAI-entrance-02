@@ -259,15 +259,17 @@ def add_scan_to_history(scan_data):
         pan_legacy = scan_data.get('pan')  # Fallback für Legacy-Daten
         timestamp_str = scan_data.get('timestamp', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-        # Prüfe auf Duplikate in den letzten 10 Scans
+        # AGGRESSIVE DUPLIKATPRÜFUNG über letzte 20 Scans
         is_duplicate = False
         if recent_card_scans:
             current_time = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+            current_status = scan_data.get("status", "")
 
-            for recent_scan in recent_card_scans[-10:]:  # Prüfe letzten 10 Scans
+            for recent_scan in recent_card_scans[-20:]:  # Prüfe letzte 20 Scans (erhöht von 10)
                 # Vergleiche Karten-Identifikation
                 recent_pan_hash = recent_scan.get("pan_hash")
                 recent_pan_legacy = recent_scan.get("pan")
+                recent_status = recent_scan.get("status", "")
 
                 is_same_card = False
                 if pan_hash and recent_pan_hash:
@@ -279,14 +281,21 @@ def add_scan_to_history(scan_data):
                     # Berechne Zeitdifferenz
                     try:
                         last_scan_time = datetime.strptime(recent_scan["timestamp"], "%Y-%m-%d %H:%M:%S")
-                        time_diff = (current_time - last_scan_time).total_seconds()
+                        time_diff = abs((current_time - last_scan_time).total_seconds())
 
-                        # Duplikat wenn < 3 Sekunden (aggressivere Filterung)
-                        if time_diff < 3:
+                        # AGGRESSIVE: Duplikat wenn < 10 Sekunden UND gleicher Status
+                        # Dies verhindert mehrfache "Ungültig"-Einträge innerhalb kurzer Zeit
+                        if time_diff < 10 and recent_status == current_status:
                             is_duplicate = True
-                            logger.debug(f"🔁 Duplikat-Scan ignoriert (Δt={time_diff:.1f}s)")
+                            logger.debug(f"🔁 Duplikat-Scan ignoriert (Δt={time_diff:.1f}s, Status={current_status})")
                             break
-                    except:
+                        # AUCH: Duplikat wenn EXAKT derselbe Zeitstempel (auf Sekunden-Ebene)
+                        elif time_diff == 0:
+                            is_duplicate = True
+                            logger.debug(f"🔁 Exakter Duplikat-Scan ignoriert (identischer Zeitstempel)")
+                            break
+                    except Exception as time_err:
+                        logger.debug(f"Zeitvergleich fehlgeschlagen: {time_err}")
                         pass
 
         # Nur hinzufügen wenn kein Duplikat
