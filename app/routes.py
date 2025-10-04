@@ -813,22 +813,22 @@ def dashboard():
         registered_cards = get_registered_cards()
         card_scans = get_current_card_scans()
 
-        # Convert NFC scans to display format - ONLY SHOW RECENT SCANS
+        # Convert NFC scans to display format - SHOW SCANS FROM LAST 30 DAYS
         nfc_scans_formatted = []
 
-        # Filter to only show scans from the last 5 minutes to avoid showing old/duplicate entries
-        five_minutes_ago = datetime.now() - timedelta(minutes=5)
+        # Filter to show scans from the last 30 days (consistent with cleanup policy)
+        thirty_days_ago = datetime.now() - timedelta(days=30)
         recent_unique_hashes = set()  # Track unique card hashes to avoid duplicates
 
         # Sort scans by timestamp (newest first) and process
         sorted_scans = sorted(card_scans, key=lambda x: x.get('timestamp', ''), reverse=True)
 
         for scan in sorted_scans:
-            # Parse timestamp and check if it's recent
+            # Parse timestamp and check if it's within last 30 days
             try:
                 scan_time = datetime.strptime(scan.get('timestamp', ''), '%Y-%m-%d %H:%M:%S')
-                if scan_time < five_minutes_ago:
-                    continue  # Skip old scans
+                if scan_time < thirty_days_ago:
+                    continue  # Skip scans older than 30 days
             except:
                 continue  # Skip if timestamp can't be parsed
 
@@ -2407,9 +2407,9 @@ def recent_scans():
             # Deduplizierung: Track unique card hashes (same logic as dashboard())
             seen_pan_hashes = set()
 
-            # Filter to only show scans from the last 5 minutes to avoid showing old/duplicate entries
+            # Filter to show scans from the last 30 days (consistent with cleanup policy)
             from datetime import datetime, timedelta
-            five_minutes_ago = datetime.now() - timedelta(minutes=5)
+            thirty_days_ago = datetime.now() - timedelta(days=30)
 
             # Sort scans by timestamp (newest first) for deduplication
             nfc_scans_sorted = sorted(nfc_scans, key=lambda x: x.get('timestamp', ''), reverse=True)
@@ -2443,8 +2443,8 @@ def recent_scans():
                     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     scan_time = datetime.now()
 
-                # Skip scans older than 5 minutes
-                if scan_time and scan_time < five_minutes_ago:
+                # Skip scans older than 30 days
+                if scan_time and scan_time < thirty_days_ago:
                     continue
 
                 # PCI DSS COMPLIANT: Use pan_hash for deduplication, pan_last4 for display

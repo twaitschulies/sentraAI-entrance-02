@@ -10,7 +10,7 @@ import json
 import time
 import re
 from threading import Thread, Lock, Event
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.gpio_control import pulse, pulse_with_door_state_check
 from app.models.opening_hours import opening_hours_manager
 import traceback
