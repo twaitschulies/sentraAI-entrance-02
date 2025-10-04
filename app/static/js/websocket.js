@@ -363,6 +363,7 @@ class GuardWebSocket {
             case 'Erfolgreich': return 'bg-success';
             case 'Gültig': return 'bg-success';
             case 'Ungültig': return 'bg-danger';
+            case 'Abgelehnt': return 'bg-danger';
             case 'Valid': return 'bg-success';
             case 'Invalid': return 'bg-danger';
             case 'Fehlgeschlagen': return 'bg-danger';
@@ -371,7 +372,13 @@ class GuardWebSocket {
     }
 
     getDisplayStatus(status) {
-        // Convert raw status values to human-readable "Gültig" or "Ungültig"
+        // Convert raw status values to human-readable display text
+
+        // Special handling for access_blocked - show as "Abgelehnt"
+        if (typeof status === 'string' && status.toLowerCase().includes('access_blocked')) {
+            return 'Abgelehnt';
+        }
+
         switch (status) {
             case 'Permanent':
             case 'Temporär':
