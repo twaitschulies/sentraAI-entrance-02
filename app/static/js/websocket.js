@@ -157,7 +157,7 @@ class GuardWebSocket {
 
     checkForNewScans() {
         console.log('🔍 Checking for new scans...');
-        fetch('/api/recent_scans?limit=8')
+        fetch('/api/recent_scans?limit=10')
             .then(response => response.json())
             .then(result => {
                 console.log('📡 Scan API Response:', result);
@@ -208,12 +208,12 @@ class GuardWebSocket {
 
         // Update NFC-Tabelle (if table exists)
         if (nfcTableBody) {
-            this.updateSpecificTable(nfcTableBody, nfcScans.slice(0, 6), 'nfc');
+            this.updateSpecificTable(nfcTableBody, nfcScans.slice(0, 10), 'nfc');
         }
 
         // Update Barcode-Tabelle (if table exists and is visible)
         if (barcodeTableBody) {
-            this.updateSpecificTable(barcodeTableBody, barcodeScans.slice(0, 6), 'barcode');
+            this.updateSpecificTable(barcodeTableBody, barcodeScans.slice(0, 10), 'barcode');
         }
     }
 
@@ -275,10 +275,28 @@ class GuardWebSocket {
 
                 // Unterschiedliche HTML für NFC und Barcode Tabellen
                 if (tableType === 'nfc') {
-                    let displayPAN = scan.pan || scan.code || 'Unbekannt';
-                    if (displayPAN.length > 12) {
-                        displayPAN = displayPAN.substring(0, 6) + '...' + displayPAN.slice(-4);
+                    // PCI DSS COMPLIANT: Modern masked PAN display
+                    let maskedPanHTML = '<span class="masked-pan">';
+                    if (scan.pan_last4) {
+                        maskedPanHTML += '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                                         '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                                         '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                                         '<span class="pan-visible">' + scan.pan_last4 + '</span>';
+                    } else if (scan.pan && scan.pan.length > 4) {
+                        const last4 = scan.pan.slice(-4);
+                        maskedPanHTML += '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                                         '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                                         '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                                         '<span class="pan-visible">' + last4 + '</span>';
+                    } else if (scan.pan) {
+                        maskedPanHTML += scan.pan;
+                    } else {
+                        maskedPanHTML += '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                                         '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                                         '<span class="pan-mask">••••</span><span class="pan-separator">-</span>' +
+                                         '<span class="pan-mask">••••</span>';
                     }
+                    maskedPanHTML += '</span>';
 
                     // Get the appropriate badge color for card type
                     const cardType = scan.card_type || scan.type || 'NFC';
@@ -298,7 +316,7 @@ class GuardWebSocket {
                     row.innerHTML = `
                         <td class="small">${shortTime}</td>
                         <td><span class="badge badge-sm ${cardBadgeClass}">${cardType}</span></td>
-                        <td class="small">${displayPAN}</td>
+                        <td class="small">${maskedPanHTML}</td>
                         <td><span class="badge badge-sm ${this.getStatusClass(this.getDisplayStatus(scan.status))}">${this.getDisplayStatus(scan.status)}</span></td>
                     `;
                 } else {
@@ -331,11 +349,11 @@ class GuardWebSocket {
             }
         });
 
-        // Begrenze auf maximal 8 Zeilen
+        // Begrenze auf maximal 10 Zeilen
         const allRows = tableBody.querySelectorAll('tr');
-        if (allRows.length > 8) {
-            console.log(`✂️ Trimming table to 8 rows (was ${allRows.length})`);
-            for (let i = 8; i < allRows.length; i++) {
+        if (allRows.length > 10) {
+            console.log(`✂️ Trimming table to 10 rows (was ${allRows.length})`);
+            for (let i = 10; i < allRows.length; i++) {
                 allRows[i].remove();
             }
         }
