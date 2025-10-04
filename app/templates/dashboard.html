@@ -256,19 +256,16 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {# PCI DSS COMPLIANT: Display masked PAN with modern styling #}
+                                        {# PCI DSS COMPLIANT: Display masked PAN with consistent formatting #}
                                         <span class="masked-pan">
                                             {% if scan.get('pan_last4') %}
-                                                <span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-visible">{{ scan.pan_last4 }}</span>
+                                                {# Always use consistent format: ****-1234 #}
+                                                <span class="pan-mask">****</span><span class="pan-separator">-</span><span class="pan-visible">{{ scan.pan_last4 }}</span>
                                             {% elif scan.get('pan') %}
-                                                {# Legacy support for old plaintext data #}
-                                                {% if scan.pan|length > 4 %}
-                                                    <span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-visible">{{ scan.pan[-4:] }}</span>
-                                                {% else %}
-                                                    {{ scan.pan }}
-                                                {% endif %}
+                                                {# Fallback: use scan.pan if available #}
+                                                <span class="pan-mask">****</span><span class="pan-separator">-</span><span class="pan-visible">{{ scan.pan[-4:] if scan.pan|length > 4 else scan.pan }}</span>
                                             {% else %}
-                                                <span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span>
+                                                <span class="pan-mask">****</span><span class="pan-separator">-</span><span class="pan-mask">****</span>
                                             {% endif %}
                                         </span>
                                     </td>

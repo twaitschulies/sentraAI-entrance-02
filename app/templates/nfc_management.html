@@ -196,17 +196,16 @@
                                     <tr>
                                         <td class="small">{{ scan.timestamp }}</td>
                                         <td>
-                                            {# PCI DSS COMPLIANT: Modern masked PAN display #}
+                                            {# PCI DSS COMPLIANT: Consistent masked PAN display #}
                                             <span class="masked-pan">
                                                 {% if scan.get('pan_last4') %}
-                                                    <span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-visible">{{ scan.pan_last4 }}</span>
-                                                {% elif scan.get('pan') and scan.pan|length > 10 %}
-                                                    {# Legacy support #}
-                                                    <span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-visible">{{ scan.pan[-4:] }}</span>
+                                                    <span class="pan-mask">****</span><span class="pan-separator">-</span><span class="pan-visible">{{ scan.pan_last4 }}</span>
+                                                {% elif scan.get('pan') and scan.pan|length > 4 %}
+                                                    <span class="pan-mask">****</span><span class="pan-separator">-</span><span class="pan-visible">{{ scan.pan[-4:] }}</span>
                                                 {% elif scan.get('pan') %}
-                                                    {{ scan.pan }}
+                                                    <span class="pan-mask">****</span><span class="pan-separator">-</span><span class="pan-visible">{{ scan.pan }}</span>
                                                 {% else %}
-                                                    <span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span>
+                                                    <span class="pan-mask">****</span><span class="pan-separator">-</span><span class="pan-mask">****</span>
                                                 {% endif %}
                                             </span>
                                         </td>
@@ -262,14 +261,14 @@
                                     {% for card in registered_cards_list %}
                                     <tr>
                                         <td>
-                                            {# PCI DSS COMPLIANT: Modern masked PAN display #}
+                                            {# PCI DSS COMPLIANT: Consistent masked PAN display #}
                                             <span class="masked-pan">
                                                 {% if card.get('pan_last4') %}
-                                                    <span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-visible">{{ card.pan_last4 }}</span>
+                                                    <span class="pan-mask">****</span><span class="pan-separator">-</span><span class="pan-visible">{{ card.pan_last4 }}</span>
                                                 {% elif card.get('pan') and card.pan|length > 4 %}
-                                                    <span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-visible">{{ card.pan[-4:] }}</span>
+                                                    <span class="pan-mask">****</span><span class="pan-separator">-</span><span class="pan-visible">{{ card.pan[-4:] }}</span>
                                                 {% else %}
-                                                    <span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span><span class="pan-separator">-</span><span class="pan-mask">••••</span>
+                                                    <span class="pan-mask">****</span><span class="pan-separator">-</span><span class="pan-mask">****</span>
                                                 {% endif %}
                                             </span>
                                         </td>
