@@ -330,6 +330,7 @@
 
         <!-- Historische Scans (Filter) - Show for barcode scans only -->
         <!-- Show barcode scan history only -->
+        {% if barcode_visibility_enabled %}
         <div id="historical-scans-section" class="mt-4">
             <h6 class="mb-3">Historische Barcode-Scans durchsuchen</h6>
             <div class="filter-compact mb-3">
@@ -409,6 +410,7 @@
                 </table>
             </div>
         </div>
+        {% endif %}
 
         <!-- Paginierung - Show when there are scans (NFC or barcode) -->
         {% if total_pages > 1 %}

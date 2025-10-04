@@ -210,10 +210,39 @@ def save_cards_data():
                 logger.error(traceback.format_exc())
             return False
 
+def cleanup_old_nfc_scans(days_to_keep=30):
+    """Entfernt NFC-Scans, die älter als die angegebene Anzahl von Tagen sind."""
+    global recent_card_scans
+
+    try:
+        # Berechne das Cutoff-Datum
+        cutoff_date = datetime.now() - timedelta(days=days_to_keep)
+
+        # Filtere alte Scans heraus
+        original_count = len(recent_card_scans)
+        recent_card_scans = [
+            scan for scan in recent_card_scans
+            if scan.get('timestamp')
+            and datetime.strptime(scan['timestamp'], "%Y-%m-%d %H:%M:%S") > cutoff_date
+        ]
+
+        deleted_count = original_count - len(recent_card_scans)
+
+        if deleted_count > 0:
+            # Speichere die bereinigten Daten
+            save_cards_data()
+            logger.info(f"NFC-Scans bereinigt: {deleted_count} Scans älter als {days_to_keep} Tage wurden gelöscht")
+
+        return deleted_count
+    except Exception as e:
+        logger.error(f"Fehler beim Bereinigen alter NFC-Scans: {e}")
+        logger.error(traceback.format_exc())
+        return 0
+
 def get_current_card_scans():
     """Gibt die aktuellen NFC-Kartenscans zurück."""
     global recent_card_scans
-    
+
     # Lade Daten aus der Datei, wenn vorhanden
     if os.path.exists(CARDS_DATA_FILE):
         try:
@@ -228,7 +257,10 @@ def get_current_card_scans():
         except Exception as e:
             logger.error(f"Fehler beim Laden der NFC-Kartendaten in get_current_card_scans: {e}")
             logger.error(traceback.format_exc())
-    
+
+    # Führe automatische Bereinigung durch (30-Tage-Richtlinie)
+    cleanup_old_nfc_scans(days_to_keep=30)
+
     return recent_card_scans
 
 def load_device_config():

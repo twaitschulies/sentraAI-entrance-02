@@ -545,8 +545,30 @@ function analyzeErrors() {
 
 function clearErrorLogs() {
     if (confirm('Alle Error-Logs löschen? Dies kann nicht rückgängig gemacht werden.')) {
-        // Implementierung für Log-Bereinigung
-        alert('Error-Logs werden bereinigt...');
+        // Call the fallback log cleanup API
+        fetch('/fallback-log/api/cleanup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                days_to_keep: 0  // Delete all logs
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`✅ Erfolgreich: ${data.deleted_count} Error-Logs wurden gelöscht.`);
+                // Reload the page to show updated data
+                location.reload();
+            } else {
+                alert(`❌ Fehler: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ Fehler beim Bereinigen der Error-Logs: ' + error);
+        });
     }
 }
 

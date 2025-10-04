@@ -343,7 +343,7 @@
                         </a>
                     </li>
                     <li class="nav-item disabled" data-tooltip="NFC Fehler-Logs (Coming Soon)">
-                        <a href="#" class="nav-link nav-link-disabled" onclick="showComingSoonModal(event)">
+                        <a href="#" class="nav-link nav-link-disabled" onclick="showComingSoonModal(event, 'nfc-logs')">
                             <i class="fas fa-exclamation-triangle"></i>
                             <span>NFC Fehler-Logs</span>
                             <small class="coming-soon-badge">Coming Soon</small>
@@ -369,7 +369,7 @@
                         </a>
                     </li>
                     <li class="nav-item disabled" data-tooltip="Karten (Coming Soon)">
-                        <a href="#" class="nav-link nav-link-disabled" onclick="showComingSoonModal(event)">
+                        <a href="#" class="nav-link nav-link-disabled" onclick="showComingSoonModal(event, 'cards')">
                             <i class="fas fa-id-card"></i>
                             <span>Karten</span>
                             <small class="coming-soon-badge">Coming Soon</small>
@@ -599,9 +599,37 @@
             }
         }
 
-        // Show Coming Soon modal for Cards
-        function showComingSoonModal(event) {
+        // Show Coming Soon modal for Cards and NFC Logs
+        function showComingSoonModal(event, featureType = 'cards') {
             event.preventDefault();
+
+            // Define content based on feature type
+            let title, icon, message, features;
+
+            if (featureType === 'nfc-logs') {
+                title = 'NFC Fehler-Logs';
+                icon = 'fa-exclamation-triangle';
+                message = 'Die NFC-Analyse-Funktion wird in kommenden Patches implementiert';
+                features = null; // No feature list for NFC logs
+            } else {
+                title = 'Karten';
+                icon = 'fa-id-card';
+                message = 'Das Karten-Management wird in einem zukünftigen Update verfügbar sein. Diese Funktion wird erweiterte Verwaltung von spezifischen Zugriffsberechtigungen ermöglichen.';
+                features = `
+                    <div class="alert alert-info">
+                        <small>
+                            <i class="fas fa-info-circle me-1"></i>
+                            <strong>Geplante Features:</strong>
+                            <ul class="list-unstyled mt-2 mb-0">
+                                <li>• Individuelle Mitarbeiterkarten-Verwaltung</li>
+                                <li>• Zeitbasierte Zugangsberechtigungen</li>
+                                <li>• Gruppenverwaltung und Rollen</li>
+                                <li>• Detaillierte Zugriffsprotokollierung</li>
+                            </ul>
+                        </small>
+                    </div>
+                `;
+            }
 
             // Create modal HTML
             const modalHTML = `
@@ -610,7 +638,7 @@
                         <div class="modal-content">
                             <div class="modal-header bg-warning text-dark">
                                 <h5 class="modal-title">
-                                    <i class="fas fa-id-card me-2"></i>Karten - Coming Soon
+                                    <i class="fas ${icon} me-2"></i>${title} - Coming Soon
                                 </h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
@@ -620,21 +648,9 @@
                                 </div>
                                 <h6 class="text-primary">Feature in Entwicklung</h6>
                                 <p class="text-muted">
-                                    Das Karten-Management wird in einem zukünftigen Update verfügbar sein.
-                                    Diese Funktion wird erweiterte Verwaltung von spezifischen Zugriffsberechtigungen ermöglichen.
+                                    ${message}
                                 </p>
-                                <div class="alert alert-info">
-                                    <small>
-                                        <i class="fas fa-info-circle me-1"></i>
-                                        <strong>Geplante Features:</strong>
-                                        <ul class="list-unstyled mt-2 mb-0">
-                                            <li>• Individuelle Mitarbeiterkarten-Verwaltung</li>
-                                            <li>• Zeitbasierte Zugangsberechtigungen</li>
-                                            <li>• Gruppenverwaltung und Rollen</li>
-                                            <li>• Detaillierte Zugriffsprotokollierung</li>
-                                        </ul>
-                                    </small>
-                                </div>
+                                ${features || ''}
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
