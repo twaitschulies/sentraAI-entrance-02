@@ -38,7 +38,14 @@ class SimpleDoorControlManager:
             if os.path.exists(DOOR_CONTROL_FILE):
                 with open(DOOR_CONTROL_FILE, 'r') as f:
                     self.config = json.load(f)
-                log_system("Door control configuration loaded successfully")
+
+                # CRITICAL FIX: Ensure "mode" field exists, default to "always_normal" if missing
+                if "mode" not in self.config:
+                    self.config["mode"] = "always_normal"
+                    self._save_config()
+                    log_system("Door control config missing 'mode' field - set to 'always_normal' (default)")
+                else:
+                    log_system("Door control configuration loaded successfully")
             else:
                 # Create default configuration
                 self.config = self._get_default_config()
@@ -113,10 +120,12 @@ class SimpleDoorControlManager:
         """
         try:
             if not self.config.get("enabled", False):
+                log_system("Door control disabled - defaulting to normal_operation")
                 return "normal_operation"
 
             # Check if we have a manual mode override
             manual_mode = self.config.get("mode", "time_based")
+            log_system(f"Door control mode setting: {manual_mode}")
 
             # Handle manual mode overrides
             if manual_mode == "always_normal":
@@ -135,30 +144,35 @@ class SimpleDoorControlManager:
             # Time-based mode logic
             current_time = datetime.now()
             current_weekday = current_time.strftime("%A").lower()
+            log_system(f"Time-based mode check - Current: {current_time.strftime('%H:%M')} on {current_weekday}")
 
             # Check each mode to see if we're currently in its time window
             modes_config = self.config.get("modes", {})
 
             for mode_name, mode_config in modes_config.items():
                 if not mode_config.get("enabled", False):
+                    log_system(f"Mode '{mode_name}' is DISABLED - skipping")
                     continue
 
                 if current_weekday not in mode_config.get("days", []):
+                    log_system(f"Mode '{mode_name}' not active on {current_weekday} - skipping")
                     continue
 
-                if self._is_time_in_window(
-                    current_time.time(),
-                    mode_config.get("start_time", "00:00"),
-                    mode_config.get("end_time", "23:59")
-                ):
+                start_time = mode_config.get("start_time", "00:00")
+                end_time = mode_config.get("end_time", "23:59")
+
+                if self._is_time_in_window(current_time.time(), start_time, end_time):
+                    log_system(f"✅ Mode '{mode_name}' is ACTIVE ({start_time}-{end_time})")
                     # Always sync GPIO when we determine the mode, even if mode hasn't changed
                     # This ensures GPIO state is correct after service restarts or config changes
                     if mode_name != self.current_mode:
                         self.current_mode = mode_name
                         self.last_mode_change = current_time
-                        log_system(f"Door mode changed to: {mode_name}")
+                        log_system(f"🔄 Door mode CHANGED to: {mode_name}")
                     self._sync_gpio_state()
                     return mode_name
+                else:
+                    log_system(f"Mode '{mode_name}' outside time window ({start_time}-{end_time})")
 
             # Fallback to normal operation if no mode matches
             if self.current_mode != "normal_operation":
@@ -236,6 +250,30 @@ class SimpleDoorControlManager:
         # This ensures people can exit even in access_blocked mode
         # The GPIO pulse will still be triggered for QR scans in Mode 3
         return True  # Always return True for fail-safe emergency exit
+
+    def get_status(self) -> Dict:
+        """Get comprehensive door control status."""
+        current_mode = self.get_current_mode()
+        next_change = self.get_next_mode_change()
+
+        try:
+            from ..gpio_control import get_gpio_state
+            gpio_status = get_gpio_state()
+            gpio_state = "HIGH" if gpio_status.get("state") == 1 else "LOW"
+        except Exception as e:
+            log_error(f"Error getting GPIO state: {str(e)}")
+            gpio_state = "UNKNOWN"
+
+        return {
+            "enabled": self.config.get("enabled", False),
+            "mode": self.config.get("mode", "time_based"),
+            "current_mode": current_mode,
+            "gpio_state": gpio_state,
+            "next_change": next_change,
+            "last_mode_change": self.last_mode_change.isoformat() if self.last_mode_change else None,
+            "modes_config": self.config.get("modes", {}),
+            "timestamp": datetime.now().isoformat()
+        }
 
     def get_next_mode_change(self) -> Optional[str]:
         """Get description of next mode change (simplified version)."""

@@ -24,16 +24,16 @@
                                         <strong>Türsteuerungs-Modus</strong>
                                     </label>
                                     <select class="form-select" id="door_control_mode" name="door_control_mode" onchange="toggleModeSettings()">
-                                        <option value="always_normal" {% if door_config and door_config.mode == 'always_normal' %}selected{% endif %}>
-                                            Normalbetrieb
+                                        <option value="always_normal" {% if door_config and door_config.get('mode') == 'always_normal' %}selected{% elif not door_config or not door_config.get('mode') %}selected{% endif %}>
+                                            Normalbetrieb (Standard)
                                         </option>
-                                        <option value="time_based" {% if door_config and door_config.mode == 'time_based' %}selected{% endif %}>
-                                            Zeitsteuerung
+                                        <option value="time_based" {% if door_config and door_config.get('mode') == 'time_based' %}selected{% endif %}>
+                                            Zeitsteuerung (Modi 1, 2, 3)
                                         </option>
-                                        <option value="always_open" {% if door_config and door_config.mode == 'always_open' %}selected{% endif %}>
+                                        <option value="always_open" {% if door_config and door_config.get('mode') == 'always_open' %}selected{% endif %}>
                                             Daueroffen
                                         </option>
-                                        <option value="always_closed" {% if door_config and door_config.mode == 'always_closed' %}selected{% endif %}>
+                                        <option value="always_closed" {% if door_config and door_config.get('mode') == 'always_closed' %}selected{% endif %}>
                                             Dauergeschlossen
                                         </option>
                                     </select>
@@ -41,7 +41,7 @@
                                 </div>
 
                                 <!-- Time-Based Configuration -->
-                                <div id="time-based-config" style="{% if not door_config or door_config.mode != 'time_based' %}display: none;{% endif %}">
+                                <div id="time-based-config" style="{% if not door_config or door_config.get('mode') != 'time_based' %}display: none;{% endif %}">
                                     <h6 class="text-primary mb-3">Zeitbasierte Modi-Konfiguration</h6>
 
                                     <!-- Always Open Mode -->
@@ -55,20 +55,20 @@
                                                     <div class="mb-3">
                                                         <label for="always_open_start" class="form-label">Start</label>
                                                         <input type="time" class="form-control" id="always_open_start" name="always_open_start"
-                                                               value="{{ door_config.modes.always_open.start_time if door_config and door_config.modes else '08:00' }}">
+                                                               value="{{ door_config.modes.always_open.start_time if door_config and door_config.get('modes') and door_config.modes.get('always_open') else '08:00' }}">
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
                                                     <div class="mb-3">
                                                         <label for="always_open_end" class="form-label">Ende</label>
                                                         <input type="time" class="form-control" id="always_open_end" name="always_open_end"
-                                                               value="{{ door_config.modes.always_open.end_time if door_config and door_config.modes else '16:00' }}">
+                                                               value="{{ door_config.modes.always_open.end_time if door_config and door_config.get('modes') and door_config.modes.get('always_open') else '16:00' }}">
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
                                                     <div class="form-check form-switch mt-4">
                                                         <input class="form-check-input" type="checkbox" id="always_open_enabled"
-                                                               name="always_open_enabled" {% if door_config and door_config.modes and door_config.modes.always_open.enabled %}checked{% endif %}>
+                                                               name="always_open_enabled" {% if door_config and door_config.get('modes') and door_config.modes.get('always_open') and door_config.modes.always_open.get('enabled') %}checked{% endif %}>
                                                         <label class="form-check-label" for="always_open_enabled">
                                                             <strong>Aktiviert</strong>
                                                         </label>
@@ -96,20 +96,20 @@
                                                     <div class="mb-3">
                                                         <label for="normal_operation_start" class="form-label">Start</label>
                                                         <input type="time" class="form-control" id="normal_operation_start" name="normal_operation_start"
-                                                               value="{{ door_config.modes.normal_operation.start_time if door_config and door_config.modes else '16:00' }}">
+                                                               value="{{ door_config.modes.normal_operation.start_time if door_config and door_config.get('modes') and door_config.modes.get('normal_operation') else '16:00' }}">
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
                                                     <div class="mb-3">
                                                         <label for="normal_operation_end" class="form-label">Ende</label>
                                                         <input type="time" class="form-control" id="normal_operation_end" name="normal_operation_end"
-                                                               value="{{ door_config.modes.normal_operation.end_time if door_config and door_config.modes else '04:00' }}">
+                                                               value="{{ door_config.modes.normal_operation.end_time if door_config and door_config.get('modes') and door_config.modes.get('normal_operation') else '04:00' }}">
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
                                                     <div class="form-check form-switch mt-4">
                                                         <input class="form-check-input" type="checkbox" id="normal_operation_enabled"
-                                                               name="normal_operation_enabled" {% if door_config and door_config.modes and door_config.modes.normal_operation.enabled %}checked{% endif %}>
+                                                               name="normal_operation_enabled" {% if door_config and door_config.get('modes') and door_config.modes.get('normal_operation') and door_config.modes.normal_operation.get('enabled') %}checked{% endif %}>
                                                         <label class="form-check-label" for="normal_operation_enabled">
                                                             <strong>Aktiviert</strong>
                                                         </label>
@@ -137,20 +137,20 @@
                                                     <div class="mb-3">
                                                         <label for="access_blocked_start" class="form-label">Start</label>
                                                         <input type="time" class="form-control" id="access_blocked_start" name="access_blocked_start"
-                                                               value="{{ door_config.modes.access_blocked.start_time if door_config and door_config.modes else '04:00' }}">
+                                                               value="{{ door_config.modes.access_blocked.start_time if door_config and door_config.get('modes') and door_config.modes.get('access_blocked') else '04:00' }}">
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
                                                     <div class="mb-3">
                                                         <label for="access_blocked_end" class="form-label">Ende</label>
                                                         <input type="time" class="form-control" id="access_blocked_end" name="access_blocked_end"
-                                                               value="{{ door_config.modes.access_blocked.end_time if door_config and door_config.modes else '08:00' }}">
+                                                               value="{{ door_config.modes.access_blocked.end_time if door_config and door_config.get('modes') and door_config.modes.get('access_blocked') else '08:00' }}">
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
                                                     <div class="form-check form-switch mt-4">
                                                         <input class="form-check-input" type="checkbox" id="access_blocked_enabled"
-                                                               name="access_blocked_enabled" {% if door_config and door_config.modes and door_config.modes.access_blocked.enabled %}checked{% endif %}>
+                                                               name="access_blocked_enabled" {% if door_config and door_config.get('modes') and door_config.modes.get('access_blocked') and door_config.modes.access_blocked.get('enabled') %}checked{% endif %}>
                                                         <label class="form-check-label" for="access_blocked_enabled">
                                                             <strong>Aktiviert</strong>
                                                         </label>
