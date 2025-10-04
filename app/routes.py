@@ -864,8 +864,8 @@ def dashboard():
 
             # Format the scan for display
             formatted_scan = {
-                'timestamp': scan.get('timestamp', '').split(' ')[1][:5] if ' ' in scan.get('timestamp', '') else scan.get('timestamp', '')[:5],  # Show only HH:MM
-                'full_timestamp': timestamp,  # FIXED: Full timestamp for unique scanId in template
+                'timestamp': timestamp,  # FIXED: Use full timestamp for consistent sorting
+                'display_time': scan.get('timestamp', '').split(' ')[1][:5] if ' ' in scan.get('timestamp', '') else scan.get('timestamp', '')[:5],  # HH:MM for display
                 'code': f"NFC-{display_pan}",
                 'pan': display_pan,  # PCI DSS COMPLIANT: Masked PAN for template fallback
                 'status': scan.get('status', 'NFC-Karte'),

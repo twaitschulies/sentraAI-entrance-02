@@ -218,140 +218,140 @@ class GuardWebSocket {
     }
 
     updateSpecificTable(tableBody, scans, tableType) {
-        // Always remove "Warte auf Scans" message when we have data
-        const waitingRow = tableBody.querySelector('td[colspan="4"]');
-
         if (scans.length === 0) {
             console.log(`📭 No ${tableType} scans to display`);
-            // If no scans and no waiting message, add "Keine Scans vorhanden" message
-            if (!waitingRow && tableBody.children.length === 0) {
-                const row = document.createElement('tr');
-                row.innerHTML = `
+            tableBody.innerHTML = `
+                <tr>
                     <td colspan="4" class="text-center text-muted">
-                        Keine ${tableType === 'nfc' ? 'NFC' : 'Barcode'}-Scans vorhanden
+                        <i class="fas fa-${tableType === 'nfc' ? 'credit-card' : 'barcode'} me-2"></i>Keine ${tableType === 'nfc' ? 'NFC' : 'Barcode'}-Scans vorhanden
                     </td>
-                `;
-                tableBody.appendChild(row);
-            }
+                </tr>
+            `;
             return;
         }
 
-        // Remove waiting message if we have scans to show
-        if (waitingRow) {
-            console.log(`🗑️ Removing waiting message from ${tableType} table`);
-            waitingRow.parentElement.remove();
-        }
-        
-        // Zeige nur die neuesten Scans für diese Tabelle
-        scans.forEach((scan, index) => {
-            // FIXED: Use pan_hash+timestamp for NFC scans to show multiple scans of same card
-            // Use timestamp+code for barcode scans to avoid duplicates
+        // FIXED: Sort scans chronologically (newest first) and remove duplicates
+        const uniqueScans = new Map();
+
+        scans.forEach(scan => {
+            // Generate unique scan ID
             const scanId = scan.pan_hash ? `nfc-${scan.pan_hash}-${scan.timestamp}` :
                           (scan.code ? `barcode-${scan.timestamp}-${scan.code}` :
-                          (scan.id || scan.timestamp || `scan-${index}`));
-            const existingRow = document.querySelector(`tr[data-scan-id="${scanId}"]`);
-            
-            if (!existingRow) {
-                console.log(`➕ Adding new scan: ${scanId}`);
-                const row = document.createElement('tr');
-                row.setAttribute('data-scan-id', scanId);
-                row.className = 'table-row-fade-in';
-                
-                const statusClass = this.getStatusClass(scan.status);
-                
-                // Zeitstempel kürzen - ensure HH:MM format
-                let shortTime = 'N/A';
-                if (scan.timestamp) {
-                    // Handle both full timestamp and time-only formats
-                    if (scan.timestamp.includes(' ')) {
-                        // Full timestamp format: "YYYY-MM-DD HH:MM:SS"
-                        shortTime = scan.timestamp.split(' ')[1]?.substring(0, 5) || scan.timestamp;
-                    } else if (scan.timestamp.includes(':')) {
-                        // Already time-only format
-                        shortTime = scan.timestamp.substring(0, 5);
-                    } else {
-                        shortTime = scan.timestamp;
-                    }
-                }
+                          scan.timestamp);
 
-                // Unterschiedliche HTML für NFC und Barcode Tabellen
-                if (tableType === 'nfc') {
-                    // PCI DSS COMPLIANT: Consistent masked PAN display
-                    let maskedPanHTML = '<span class="masked-pan">';
-                    if (scan.pan_last4) {
-                        maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
-                                         '<span class="pan-visible">' + scan.pan_last4 + '</span>';
-                    } else if (scan.pan && scan.pan.length > 4) {
-                        const last4 = scan.pan.slice(-4);
-                        maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
-                                         '<span class="pan-visible">' + last4 + '</span>';
-                    } else if (scan.pan) {
-                        maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
-                                         '<span class="pan-visible">' + scan.pan + '</span>';
-                    } else {
-                        maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
-                                         '<span class="pan-mask">****</span>';
-                    }
-                    maskedPanHTML += '</span>';
-
-                    // Get the appropriate badge color for card type
-                    const cardType = scan.card_type || scan.type || 'NFC';
-                    let cardBadgeClass = 'bg-secondary';
-                    if (cardType.includes('Mastercard')) {
-                        cardBadgeClass = 'bg-warning';
-                    } else if (cardType.includes('MIFARE')) {
-                        cardBadgeClass = 'bg-info';
-                    } else if (cardType.includes('Girocard')) {
-                        cardBadgeClass = 'bg-primary';
-                    } else if (cardType.includes('Sparkasse')) {
-                        cardBadgeClass = 'bg-danger';
-                    } else if (cardType.includes('Visa')) {
-                        cardBadgeClass = 'bg-primary';
-                    }
-
-                    row.innerHTML = `
-                        <td class="small">${shortTime}</td>
-                        <td><span class="badge badge-sm ${cardBadgeClass}">${cardType}</span></td>
-                        <td class="small">${maskedPanHTML}</td>
-                        <td><span class="badge badge-sm ${this.getStatusClass(this.getDisplayStatus(scan.status))}">${this.getDisplayStatus(scan.status)}</span></td>
-                    `;
-                } else {
-                    // Barcode Tabelle
-                    let displayCode = scan.code || scan.barcode || 'Unbekannt';
-                    if (displayCode.length > 20) {
-                        displayCode = displayCode.substring(0, 17) + '...';
-                    }
-                    
-                    row.innerHTML = `
-                        <td class="small">${shortTime}</td>
-                        <td><span class="badge badge-sm bg-info">${scan.type || 'Barcode'}</span></td>
-                        <td class="small">${displayCode}</td>
-                        <td><span class="badge badge-sm ${this.getStatusClass(this.getDisplayStatus(scan.status))}">${this.getDisplayStatus(scan.status)}</span></td>
-                    `;
-                }
-                
-                // Füge neue Scans oben ein
-                tableBody.insertBefore(row, tableBody.firstChild);
-                
-                // Update Live-Scan-Counter  
-                const counter = document.getElementById('live-scans-count');
-                if (counter) {
-                    const currentCount = parseInt(counter.textContent.match(/\d+/)?.[0] || 0);
-                    counter.textContent = `${currentCount + 1} Live-Scans`;
-                    console.log(`📊 Updated counter to: ${currentCount + 1}`);
-                }
-            } else {
-                console.log(`⏭️ Scan already exists: ${scanId}`);
+            // Keep only unique scans (first occurrence)
+            if (!uniqueScans.has(scanId)) {
+                uniqueScans.set(scanId, { ...scan, scanId });
             }
         });
 
-        // Begrenze auf maximal 10 Zeilen
-        const allRows = tableBody.querySelectorAll('tr');
-        if (allRows.length > 10) {
-            console.log(`✂️ Trimming table to 10 rows (was ${allRows.length})`);
-            for (let i = 10; i < allRows.length; i++) {
-                allRows[i].remove();
+        // Convert to array and sort by timestamp (newest first)
+        const sortedScans = Array.from(uniqueScans.values()).sort((a, b) => {
+            const timeA = this.parseTimestamp(a.timestamp);
+            const timeB = this.parseTimestamp(b.timestamp);
+            return timeB - timeA; // Descending order (newest first)
+        });
+
+        // Take only the 10 most recent scans
+        const displayScans = sortedScans.slice(0, 10);
+
+        console.log(`📊 Displaying ${displayScans.length} unique ${tableType} scans (from ${scans.length} total)`);
+
+        // FIXED: Replace entire table content to ensure correct order
+        const rows = displayScans.map(scan => {
+            // Zeitstempel kürzen - ensure HH:MM format
+            let shortTime = 'N/A';
+            if (scan.timestamp) {
+                if (scan.timestamp.includes(' ')) {
+                    shortTime = scan.timestamp.split(' ')[1]?.substring(0, 5) || scan.timestamp;
+                } else if (scan.timestamp.includes(':')) {
+                    shortTime = scan.timestamp.substring(0, 5);
+                } else {
+                    shortTime = scan.timestamp;
+                }
             }
+
+            if (tableType === 'nfc') {
+                // PCI DSS COMPLIANT: Consistent masked PAN display
+                let maskedPanHTML = '<span class="masked-pan">';
+                if (scan.pan_last4) {
+                    maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
+                                     '<span class="pan-visible">' + scan.pan_last4 + '</span>';
+                } else if (scan.pan && scan.pan.length > 4) {
+                    const last4 = scan.pan.slice(-4);
+                    maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
+                                     '<span class="pan-visible">' + last4 + '</span>';
+                } else if (scan.pan) {
+                    maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
+                                     '<span class="pan-visible">' + scan.pan + '</span>';
+                } else {
+                    maskedPanHTML += '<span class="pan-mask">****</span><span class="pan-separator">-</span>' +
+                                     '<span class="pan-mask">****</span>';
+                }
+                maskedPanHTML += '</span>';
+
+                const cardType = scan.card_type || scan.type || 'NFC';
+                let cardBadgeClass = 'bg-secondary';
+                if (cardType.includes('Mastercard')) cardBadgeClass = 'bg-warning';
+                else if (cardType.includes('MIFARE')) cardBadgeClass = 'bg-info';
+                else if (cardType.includes('Girocard')) cardBadgeClass = 'bg-primary';
+                else if (cardType.includes('Sparkasse')) cardBadgeClass = 'bg-danger';
+                else if (cardType.includes('Visa')) cardBadgeClass = 'bg-primary';
+
+                return `
+                    <tr data-scan-id="${scan.scanId}">
+                        <td>${shortTime}</td>
+                        <td><span class="badge ${cardBadgeClass}">${cardType}</span></td>
+                        <td>${maskedPanHTML}</td>
+                        <td><span class="badge ${this.getStatusClass(this.getDisplayStatus(scan.status))}">${this.getDisplayStatus(scan.status)}</span></td>
+                    </tr>
+                `;
+            } else {
+                // Barcode table
+                let displayCode = scan.code || scan.barcode || 'Unbekannt';
+                if (displayCode.length > 20) {
+                    displayCode = displayCode.substring(0, 17) + '...';
+                }
+
+                return `
+                    <tr data-scan-id="${scan.scanId}">
+                        <td>${shortTime}</td>
+                        <td><span class="badge bg-info">${scan.type || 'Barcode'}</span></td>
+                        <td>${displayCode}</td>
+                        <td><span class="badge ${this.getStatusClass(this.getDisplayStatus(scan.status))}">${this.getDisplayStatus(scan.status)}</span></td>
+                    </tr>
+                `;
+            }
+        }).join('');
+
+        // Replace entire table body content
+        tableBody.innerHTML = rows;
+
+        // Update Live-Scan counter
+        const counter = document.getElementById('live-scans-count');
+        if (counter) {
+            counter.textContent = `${displayScans.length} Live-Scans`;
+        }
+    }
+
+    parseTimestamp(timestamp) {
+        try {
+            if (!timestamp) return new Date(0);
+
+            // Try parsing full timestamp format: "YYYY-MM-DD HH:MM:SS"
+            if (timestamp.includes(' ')) {
+                return new Date(timestamp.replace(' ', 'T'));
+            }
+            // Try parsing ISO format
+            if (timestamp.includes('T')) {
+                return new Date(timestamp);
+            }
+            // Fallback: assume it's a time-only format, use today's date
+            const today = new Date().toISOString().split('T')[0];
+            return new Date(`${today} ${timestamp}`);
+        } catch (e) {
+            console.error('Failed to parse timestamp:', timestamp, e);
+            return new Date(0);
         }
     }
 

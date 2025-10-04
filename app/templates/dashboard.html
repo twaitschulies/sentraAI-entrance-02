@@ -221,8 +221,8 @@
                         <tbody id="recent-nfc-scans-table">
                             {% if nfc_scans %}
                                 {% for scan in nfc_scans %}
-                                <tr data-scan-id="nfc-{{ scan.pan_hash }}-{{ scan.full_timestamp }}">
-                                    <td>{{ scan.timestamp }}</td>
+                                <tr data-scan-id="nfc-{{ scan.pan_hash }}-{{ scan.timestamp }}">
+                                    <td>{{ scan.display_time if scan.display_time else scan.timestamp.split(' ')[1][:5] if ' ' in scan.timestamp else scan.timestamp[:5] }}</td>
                                     <td>
                                         {% set card_type = scan.get('card_type', 'Bankkarte') %}
                                         {% if 'Mastercard' in card_type %}
