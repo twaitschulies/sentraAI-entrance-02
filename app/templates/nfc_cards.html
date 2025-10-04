@@ -5,44 +5,28 @@
 
 {% block head %}
 <style>
-/* Modern PAN Masking Styles */
+/* Compact PAN Masking Styles */
 .masked-pan {
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
-    font-size: 0.95rem;
-    font-weight: 500;
-    letter-spacing: 0.5px;
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 8px;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: 6px;
-    border: 1px solid #dee2e6;
+    font-size: 0.875rem;
+    font-weight: 400;
+    letter-spacing: 0.3px;
+    display: inline;
 }
 
 .pan-mask {
     color: #6c757d;
-    opacity: 0.6;
+    opacity: 0.7;
 }
 
 .pan-separator {
     color: #adb5bd;
-    margin: 0 2px;
+    margin: 0 1px;
 }
 
 .pan-visible {
     color: #212529;
-    font-weight: 600;
-    background: linear-gradient(135deg, #fff3cd 0%, #fff9e6 100%);
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-left: 2px;
-}
-
-@media (max-width: 768px) {
-    .masked-pan {
-        font-size: 0.85rem;
-        padding: 3px 6px;
-    }
+    font-weight: 500;
 }
 </style>
 {% endblock %}
