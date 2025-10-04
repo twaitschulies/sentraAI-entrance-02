@@ -28,7 +28,7 @@
                                             Normalbetrieb (Standard)
                                         </option>
                                         <option value="time_based" {% if door_config and door_config.get('mode') == 'time_based' %}selected{% endif %}>
-                                            Zeitsteuerung (Modi 1, 2, 3)
+                                            Zeitsteuerung
                                         </option>
                                         <option value="always_open" {% if door_config and door_config.get('mode') == 'always_open' %}selected{% endif %}>
                                             Daueroffen
@@ -47,7 +47,7 @@
                                     <!-- Always Open Mode -->
                                     <div class="card border-success mb-3">
                                         <div class="card-header bg-success text-white">
-                                            <h6 class="mb-0">Mode 1: Always Open (Freier Zugang)</h6>
+                                            <h6 class="mb-0">Modus 1: Daueroffen (Freier Zugang)</h6>
                                         </div>
                                         <div class="card-body">
                                             <div class="row">
@@ -88,7 +88,7 @@
                                     <!-- Normal Operation Mode -->
                                     <div class="card border-primary mb-3">
                                         <div class="card-header bg-primary text-white">
-                                            <h6 class="mb-0">Mode 2: Normal Operation (Standard-Zugang)</h6>
+                                            <h6 class="mb-0">Modus 2: Normalbetrieb (Standard-Zugang)</h6>
                                         </div>
                                         <div class="card-body">
                                             <div class="row">
@@ -129,7 +129,7 @@
                                     <!-- Access Blocked Mode -->
                                     <div class="card border-danger mb-3">
                                         <div class="card-header bg-danger text-white">
-                                            <h6 class="mb-0">Mode 3: Access Blocked (Nur Ausgang)</h6>
+                                            <h6 class="mb-0">Modus 3: Zugang gesperrt (Nur Ausgang)</h6>
                                         </div>
                                         <div class="card-body">
                                             <div class="row">
@@ -279,11 +279,11 @@ function getModeClass(mode) {
 // Get display name for mode
 function getModeDisplayName(mode) {
     switch(mode) {
-        case 'always_open': return 'Always Open';
-        case 'normal_operation': return 'Normal Operation';
-        case 'access_blocked': return 'Access Blocked';
-        case 'always_normal': return 'Always Normal';
-        case 'always_closed': return 'Always Closed';
+        case 'always_open': return 'Daueroffen';
+        case 'normal_operation': return 'Normalbetrieb';
+        case 'access_blocked': return 'Zugang gesperrt';
+        case 'always_normal': return 'Normalbetrieb';
+        case 'always_closed': return 'Dauergeschlossen';
         default: return 'Unbekannt';
     }
 }
