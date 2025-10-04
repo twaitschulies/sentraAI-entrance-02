@@ -818,7 +818,7 @@ def dashboard():
 
         # Filter to show scans from the last 30 days (consistent with cleanup policy)
         thirty_days_ago = datetime.now() - timedelta(days=30)
-        recent_unique_hashes = set()  # Track unique card hashes to avoid duplicates
+        seen_scans = set()  # Track unique scans by pan_hash+timestamp to avoid exact duplicates
 
         # Sort scans by timestamp (newest first) and process
         sorted_scans = sorted(card_scans, key=lambda x: x.get('timestamp', ''), reverse=True)
@@ -835,6 +835,7 @@ def dashboard():
             # PCI DSS COMPLIANT: Use pan_hash for deduplication, pan_last4 for display
             pan_hash = scan.get('pan_hash')
             pan_last4 = scan.get('pan_last4')
+            timestamp = scan.get('timestamp', '')
 
             # Legacy support: if no hash exists, it's old plaintext data
             if not pan_hash and 'pan' in scan:
@@ -844,11 +845,13 @@ def dashboard():
                     pan_hash = hash_pan(pan)
                     pan_last4 = pan[-4:] if len(pan) >= 4 else pan
 
-            # Skip if we've already shown this card (avoid duplicates)
-            if pan_hash and pan_hash in recent_unique_hashes:
-                continue
-            if pan_hash:
-                recent_unique_hashes.add(pan_hash)
+            # FIXED: Deduplicate by pan_hash+timestamp instead of just pan_hash
+            # This allows showing multiple scans of the same card at different times
+            scan_key = f"{pan_hash}:{timestamp}"
+            if scan_key in seen_scans:
+                continue  # Skip exact duplicate (same card, same time)
+            if pan_hash and timestamp:
+                seen_scans.add(scan_key)
 
             # Format PAN for display (PCI DSS compliant - masked)
             if pan_last4:
@@ -2404,8 +2407,8 @@ def recent_scans():
             nfc_scans = get_current_card_scans()
             logger.info(f"Raw NFC scans loaded: {len(nfc_scans)} scans")
 
-            # Deduplizierung: Track unique card hashes (same logic as dashboard())
-            seen_pan_hashes = set()
+            # Deduplizierung: Track unique scans by pan_hash+timestamp (same logic as dashboard())
+            seen_scans = set()
 
             # Filter to show scans from the last 30 days (consistent with cleanup policy)
             from datetime import datetime, timedelta
@@ -2459,12 +2462,14 @@ def recent_scans():
                         pan_hash = hash_pan(pan)
                         pan_last4 = pan[-4:] if len(pan) >= 4 else pan
 
-                # DEDUPLICATION: Skip if we've already seen this card (same logic as dashboard())
-                if pan_hash and pan_hash in seen_pan_hashes:
-                    logger.debug(f"Skipping duplicate NFC scan with pan_hash: {pan_hash[:8]}...")
+                # FIXED: Deduplicate by pan_hash+timestamp instead of just pan_hash
+                # This allows showing multiple scans of the same card at different times
+                scan_key = f"{pan_hash}:{timestamp}"
+                if scan_key in seen_scans:
+                    logger.debug(f"Skipping exact duplicate NFC scan: {pan_hash[:8] if pan_hash else 'unknown'}...")
                     continue
-                if pan_hash:
-                    seen_pan_hashes.add(pan_hash)
+                if pan_hash and timestamp:
+                    seen_scans.add(scan_key)
 
                 # Format PAN for display (PCI DSS compliant - masked)
                 if pan_last4:

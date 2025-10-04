@@ -244,8 +244,9 @@ class GuardWebSocket {
         
         // Zeige nur die neuesten Scans für diese Tabelle
         scans.forEach((scan, index) => {
-            // Use pan_hash for NFC scans, timestamp+code for barcode scans to avoid duplicates
-            const scanId = scan.pan_hash ? `nfc-${scan.pan_hash}` :
+            // FIXED: Use pan_hash+timestamp for NFC scans to show multiple scans of same card
+            // Use timestamp+code for barcode scans to avoid duplicates
+            const scanId = scan.pan_hash ? `nfc-${scan.pan_hash}-${scan.timestamp}` :
                           (scan.code ? `barcode-${scan.timestamp}-${scan.code}` :
                           (scan.id || scan.timestamp || `scan-${index}`));
             const existingRow = document.querySelector(`tr[data-scan-id="${scanId}"]`);
