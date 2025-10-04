@@ -872,7 +872,8 @@ def dashboard():
                 'scan_type': 'nfc',
                 'pan_last4': pan_last4,  # PCI DSS COMPLIANT: Only last 4 digits
                 'pan_hash': pan_hash,  # FIXED: Include pan_hash for unique scanId in template
-                'card_type': card_type  # Include actual card type
+                'card_type': card_type,  # Include actual card type
+                'rejection_reason': scan.get('rejection_reason')  # Include rejection reason for "Abgelehnt" status
             }
 
             nfc_scans_formatted.append(formatted_scan)
@@ -2498,6 +2499,7 @@ def recent_scans():
                     'pan_hash': pan_hash,    # ✅ Include pan_hash for deduplication
                     'card_type': nfc_scan.get('card_type', 'NFC'),
                     'status': status,
+                    'rejection_reason': nfc_scan.get('rejection_reason'),  # Include rejection reason for "Abgelehnt" status
                     'type': 'NFC'
                 }
                 formatted_nfc_scans.append(formatted_scan)
