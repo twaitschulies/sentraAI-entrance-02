@@ -243,13 +243,13 @@
                                         {# PCI DSS COMPLIANT: Display masked PAN with consistent formatting #}
                                         <span class="masked-pan">
                                             {% if scan.get('pan_last4') %}
-                                                {# Always use consistent format: ****-1234 #}
-                                                <span class="pan-mask">****</span><span class="pan-separator">-</span><span class="pan-visible">{{ scan.pan_last4 }}</span>
+                                                {# Format: XXXX XXXX XXXX 2345 #}
+                                                <span class="pan-mask">XXXX</span> <span class="pan-mask">XXXX</span> <span class="pan-mask">XXXX</span> <span class="pan-visible">{{ scan.pan_last4 }}</span>
                                             {% elif scan.get('pan') %}
                                                 {# Fallback: use scan.pan if available #}
-                                                <span class="pan-mask">****</span><span class="pan-separator">-</span><span class="pan-visible">{{ scan.pan[-4:] if scan.pan|length > 4 else scan.pan }}</span>
+                                                <span class="pan-mask">XXXX</span> <span class="pan-mask">XXXX</span> <span class="pan-mask">XXXX</span> <span class="pan-visible">{{ scan.pan[-4:] if scan.pan|length > 4 else scan.pan }}</span>
                                             {% else %}
-                                                <span class="pan-mask">****</span><span class="pan-separator">-</span><span class="pan-mask">****</span>
+                                                <span class="pan-mask">XXXX</span> <span class="pan-mask">XXXX</span> <span class="pan-mask">XXXX</span> <span class="pan-mask">XXXX</span>
                                             {% endif %}
                                         </span>
                                     </td>
@@ -262,6 +262,8 @@
                                             <span class="badge bg-primary">NFC-Karte</span>
                                         {% elif scan.status == "Temporär" %}
                                             <span class="badge bg-info">Temporär</span>
+                                        {% elif scan.status == "Ungültig" and scan.get('rejection_reason') == 'geschlossen' %}
+                                            <span class="badge bg-danger">Abgelehnt</span>
                                         {% else %}
                                             <span class="badge bg-warning">{{ scan.status }}</span>
                                         {% endif %}
