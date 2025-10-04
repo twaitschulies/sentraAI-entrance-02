@@ -275,6 +275,15 @@ class SimpleDoorControlManager:
             "timestamp": datetime.now().isoformat()
         }
 
+    def _get_mode_display_name(self, mode_name: str) -> str:
+        """Translate internal mode name to German display name."""
+        mode_names = {
+            'always_open': 'Daueroffen',
+            'normal_operation': 'Normalbetrieb',
+            'access_blocked': 'Zugang gesperrt'
+        }
+        return mode_names.get(mode_name, mode_name)
+
     def get_next_mode_change(self) -> Optional[str]:
         """Get description of next mode change (simplified version)."""
         try:
@@ -292,11 +301,13 @@ class SimpleDoorControlManager:
 
             for time_obj, mode_name in times:
                 if time_obj > current_time.time():
-                    return f"{time_obj.strftime('%H:%M')} - {mode_name}"
+                    mode_display = self._get_mode_display_name(mode_name)
+                    return f"{time_obj.strftime('%H:%M')} - {mode_display}"
 
             # Next change is tomorrow
             if times:
-                return f"Tomorrow {times[0][0].strftime('%H:%M')} - {times[0][1]}"
+                mode_display = self._get_mode_display_name(times[0][1])
+                return f"Morgen {times[0][0].strftime('%H:%M')} - {mode_display}"
 
             return None
 
