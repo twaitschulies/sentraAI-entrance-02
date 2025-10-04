@@ -68,7 +68,7 @@
                                                 <div class="col-md-4">
                                                     <div class="form-check form-switch mt-4">
                                                         <input class="form-check-input" type="checkbox" id="always_open_enabled"
-                                                               name="always_open_enabled" {% if door_config and door_config.get('modes') and door_config.modes.get('always_open') and door_config.modes.always_open.get('enabled') %}checked{% endif %}>
+                                                               name="always_open_enabled" {% if (door_config and door_config.get('modes') and door_config.modes.get('always_open') and door_config.modes.always_open.get('enabled')) or (door_config and door_config.get('mode') == 'time_based' and not door_config.get('modes')) %}checked{% endif %}>
                                                         <label class="form-check-label" for="always_open_enabled">
                                                             <strong>Aktiviert</strong>
                                                         </label>
@@ -109,7 +109,7 @@
                                                 <div class="col-md-4">
                                                     <div class="form-check form-switch mt-4">
                                                         <input class="form-check-input" type="checkbox" id="normal_operation_enabled"
-                                                               name="normal_operation_enabled" {% if door_config and door_config.get('modes') and door_config.modes.get('normal_operation') and door_config.modes.normal_operation.get('enabled') %}checked{% endif %}>
+                                                               name="normal_operation_enabled" {% if (door_config and door_config.get('modes') and door_config.modes.get('normal_operation') and door_config.modes.normal_operation.get('enabled')) or (door_config and door_config.get('mode') == 'time_based' and not door_config.get('modes')) %}checked{% endif %}>
                                                         <label class="form-check-label" for="normal_operation_enabled">
                                                             <strong>Aktiviert</strong>
                                                         </label>
@@ -150,7 +150,7 @@
                                                 <div class="col-md-4">
                                                     <div class="form-check form-switch mt-4">
                                                         <input class="form-check-input" type="checkbox" id="access_blocked_enabled"
-                                                               name="access_blocked_enabled" {% if door_config and door_config.get('modes') and door_config.modes.get('access_blocked') and door_config.modes.access_blocked.get('enabled') %}checked{% endif %}>
+                                                               name="access_blocked_enabled" {% if (door_config and door_config.get('modes') and door_config.modes.get('access_blocked') and door_config.modes.access_blocked.get('enabled')) or (door_config and door_config.get('mode') == 'time_based' and not door_config.get('modes')) %}checked{% endif %}>
                                                         <label class="form-check-label" for="access_blocked_enabled">
                                                             <strong>Aktiviert</strong>
                                                         </label>
@@ -220,6 +220,23 @@ function toggleModeSettings() {
 
     if (modeSelect.value === 'time_based') {
         timeBasedConfig.style.display = 'block';
+
+        // Auto-enable all mode checkboxes when switching to time_based
+        // This helps prevent the common mistake of setting times but forgetting to enable
+        const alwaysOpenCheckbox = document.getElementById('always_open_enabled');
+        const normalOpCheckbox = document.getElementById('normal_operation_enabled');
+        const accessBlockedCheckbox = document.getElementById('access_blocked_enabled');
+
+        // Only auto-enable if they're currently unchecked (don't override user's explicit choice)
+        if (alwaysOpenCheckbox && !alwaysOpenCheckbox.checked) {
+            alwaysOpenCheckbox.checked = true;
+        }
+        if (normalOpCheckbox && !normalOpCheckbox.checked) {
+            normalOpCheckbox.checked = true;
+        }
+        if (accessBlockedCheckbox && !accessBlockedCheckbox.checked) {
+            accessBlockedCheckbox.checked = true;
+        }
     } else {
         timeBasedConfig.style.display = 'none';
     }

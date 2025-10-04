@@ -3721,7 +3721,7 @@ def update_door_control_config():
                         "enabled": request.form.get("always_open_enabled") == "on",
                         "start_time": request.form.get("always_open_start", "08:00"),
                         "end_time": request.form.get("always_open_end", "16:00"),
-                        "days": ["monday", "tuesday", "wednesday", "thursday", "friday"]
+                        "days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
                     },
                     "normal_operation": {
                         "enabled": request.form.get("normal_operation_enabled") == "on",
