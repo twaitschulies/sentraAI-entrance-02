@@ -377,34 +377,45 @@ def handle_scan(code):
     
     # Webhook SOFORT triggern bei erfolgreichem Scan (OPTIMIERT für schnelle Ansage)
     # IMPORTANT: Webhook is triggered INDEPENDENTLY of "Allow All Barcodes" setting
-    # Both features must work simultaneously without conflict
-    if scan_successful and WEBHOOK_AVAILABLE:
-        try:
-            webhook_data = {
-                'code': code,
-                'status': scan_status,
-                'scan_type': 'barcode'
-            }
-            # Webhook in separatem Thread für maximale Geschwindigkeit
-            import threading
-            webhook_thread = threading.Thread(target=trigger_barcode_webhook, args=(webhook_data, False))
-            webhook_thread.daemon = True
-            webhook_thread.start()
-            logger.debug("🚀 Barcode-Webhook in separatem Thread gestartet")
-        except Exception as webhook_err:
-            logger.debug(f"Barcode-Webhook Fehler: {webhook_err}")
-    
-    # GPIO-Puls und Audio NACH Webhook für optimales Timing
+    # Check door control mode FIRST to determine if webhook should be triggered
+    current_mode = "normal_operation"  # Default mode
+    webhook_allowed = True  # Default to allow webhooks
+
     if scan_successful:
-        # Check time-based door control before opening door (QR scan type with fail-safe)
+        # Check time-based door control before webhook and GPIO
         try:
             from app.models.door_control_simple import simple_door_control_manager as door_control_manager
 
-            # FAIL-SAFE: QR scans are ALWAYS allowed for emergency egress
+            # FAIL-SAFE: QR scans are ALWAYS allowed for emergency egress GPIO
             # This is a critical safety feature - even in Mode 3 (access_blocked)
             # QR/barcode scans must trigger GPIO HIGH for people to exit!
             is_exit = True  # QR scans are treated as exits for fail-safe behavior
             current_mode = door_control_manager.get_current_mode()
+
+            # Determine if webhook should be triggered based on mode
+            # In "always_closed" (access_blocked) mode, suppress webhooks even for fail-safe exits
+            if current_mode == "access_blocked":
+                webhook_allowed = False
+                logger.info(f"🔇 Webhook unterdrückt im Modus '{current_mode}' (Barcode-Scan)")
+            else:
+                webhook_allowed = True
+
+            # Trigger webhook ONLY if allowed by door control mode
+            if webhook_allowed and WEBHOOK_AVAILABLE:
+                try:
+                    webhook_data = {
+                        'code': code,
+                        'status': scan_status,
+                        'scan_type': 'barcode'
+                    }
+                    # Webhook in separatem Thread für maximale Geschwindigkeit
+                    import threading
+                    webhook_thread = threading.Thread(target=trigger_barcode_webhook, args=(webhook_data, False))
+                    webhook_thread.daemon = True
+                    webhook_thread.start()
+                    logger.debug(f"🚀 Barcode-Webhook in separatem Thread gestartet (Mode: {current_mode})")
+                except Exception as webhook_err:
+                    logger.debug(f"Barcode-Webhook Fehler: {webhook_err}")
 
             logger.info(f"🔓 QR-Scan wird verarbeitet im Modus: {current_mode} (Fail-Safe aktiv)")
 

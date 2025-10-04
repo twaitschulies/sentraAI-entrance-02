@@ -483,34 +483,19 @@ def handle_card_scan(card_data):
         scan_successful = True
         card_status = "Permanent"
         logger.info(f"✅ Permanenter Code erkannt: PAN {pan}")
-        
-        # Webhook SOFORT triggern bei erfolgreichem Scan (OPTIMIERT für schnelle Ansage)
-        if scan_successful and WEBHOOK_AVAILABLE:
-            try:
-                webhook_data = {
-                    'pan': pan,
-                    'card_type': card_type,
-                    'status': card_status,
-                    'expiry_date': expiry_date
-                }
-                # Webhook in separatem Thread für maximale Geschwindigkeit
-                import threading
-                webhook_thread = threading.Thread(target=trigger_nfc_webhook, args=(webhook_data, False))
-                webhook_thread.daemon = True
-                webhook_thread.start()
-                logger.debug("🚀 NFC-Webhook in separatem Thread gestartet")
-            except Exception as webhook_err:
-                logger.debug(f"NFC-Webhook Fehler: {webhook_err}")  # Debug level da nicht kritisch
-        
-        # GPIO-Puls NACH Webhook für optimales Timing
+
+        # Check time-based door control FIRST (before webhook and GPIO)
+        nfc_allowed = True  # Default to allowed
+        door_mode = "normal_operation"  # Default mode
+
         if scan_successful:
-            # Check time-based door control before opening door (NFC scan type)
             try:
                 from app.models.door_control_simple import simple_door_control_manager as door_control_manager
 
                 # Check if NFC access is allowed based on current time-based mode
                 nfc_allowed = door_control_manager.can_access_with_nfc()
-                nfc_reason = f"Current mode: {door_control_manager.get_current_mode()}"
+                door_mode = door_control_manager.get_current_mode()
+                nfc_reason = f"Current mode: {door_mode}"
 
                 if not nfc_allowed:
                     logger.warning(f"🚫 NFC-Zugang verweigert für PAN '{mask_pan(pan)}': {nfc_reason}")
@@ -534,6 +519,24 @@ def handle_card_scan(card_data):
                     if len(recent_card_scans) > 100:
                         recent_card_scans.pop(0)
                     return
+
+                # NFC access allowed - trigger webhook ONLY if access is allowed
+                if WEBHOOK_AVAILABLE:
+                    try:
+                        webhook_data = {
+                            'pan': pan,
+                            'card_type': card_type,
+                            'status': card_status,
+                            'expiry_date': expiry_date
+                        }
+                        # Webhook in separatem Thread für maximale Geschwindigkeit
+                        import threading
+                        webhook_thread = threading.Thread(target=trigger_nfc_webhook, args=(webhook_data, False))
+                        webhook_thread.daemon = True
+                        webhook_thread.start()
+                        logger.debug("🚀 NFC-Webhook in separatem Thread gestartet (access allowed)")
+                    except Exception as webhook_err:
+                        logger.debug(f"NFC-Webhook Fehler: {webhook_err}")  # Debug level da nicht kritisch
 
                 # Use time-based door control for GPIO pulse
                 try:
