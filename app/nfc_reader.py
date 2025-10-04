@@ -239,6 +239,76 @@ def cleanup_old_nfc_scans(days_to_keep=30):
         logger.error(traceback.format_exc())
         return 0
 
+def add_scan_to_history(scan_data):
+    """
+    Fügt einen NFC-Scan zur Historie hinzu, mit intelligenter Duplikaterkennung.
+
+    Diese zentrale Funktion verhindert Duplikate für ALLE Scan-Typen (erfolgreich UND verweigert).
+
+    Args:
+        scan_data (dict): Scan-Daten mit Feldern wie timestamp, pan_hash, card_type, status
+
+    Returns:
+        bool: True wenn Scan hinzugefügt wurde, False wenn Duplikat ignoriert wurde
+    """
+    global recent_card_scans
+
+    try:
+        # PCI DSS COMPLIANT: Verwende pan_hash für Identifikation
+        pan_hash = scan_data.get('pan_hash')
+        pan_legacy = scan_data.get('pan')  # Fallback für Legacy-Daten
+        timestamp_str = scan_data.get('timestamp', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+        # Prüfe auf Duplikate in den letzten 10 Scans
+        is_duplicate = False
+        if recent_card_scans:
+            current_time = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+
+            for recent_scan in recent_card_scans[-10:]:  # Prüfe letzten 10 Scans
+                # Vergleiche Karten-Identifikation
+                recent_pan_hash = recent_scan.get("pan_hash")
+                recent_pan_legacy = recent_scan.get("pan")
+
+                is_same_card = False
+                if pan_hash and recent_pan_hash:
+                    is_same_card = (pan_hash == recent_pan_hash)
+                elif pan_legacy and recent_pan_legacy:
+                    is_same_card = (pan_legacy == recent_pan_legacy)
+
+                if is_same_card:
+                    # Berechne Zeitdifferenz
+                    try:
+                        last_scan_time = datetime.strptime(recent_scan["timestamp"], "%Y-%m-%d %H:%M:%S")
+                        time_diff = (current_time - last_scan_time).total_seconds()
+
+                        # Duplikat wenn < 3 Sekunden (aggressivere Filterung)
+                        if time_diff < 3:
+                            is_duplicate = True
+                            logger.debug(f"🔁 Duplikat-Scan ignoriert (Δt={time_diff:.1f}s)")
+                            break
+                    except:
+                        pass
+
+        # Nur hinzufügen wenn kein Duplikat
+        if not is_duplicate:
+            with cards_data_lock:
+                recent_card_scans.append(scan_data)
+
+                # Begrenze auf MAX_CARD_SCANS
+                if len(recent_card_scans) > MAX_CARD_SCANS:
+                    recent_card_scans[:] = recent_card_scans[-MAX_CARD_SCANS:]
+
+            # Speichere Daten
+            save_cards_data()
+            return True
+
+        return False
+
+    except Exception as e:
+        logger.error(f"Fehler bei add_scan_to_history: {e}")
+        logger.error(traceback.format_exc())
+        return False
+
 def get_current_card_scans():
     """Gibt die aktuellen NFC-Kartenscans zurück."""
     global recent_card_scans
@@ -506,18 +576,15 @@ def handle_card_scan(card_data):
                                extra_context={'mode': door_control_manager.get_current_mode()})
                     except:
                         pass
-                    # Log the denied access attempt
-                    recent_card_scans.append({
+                    # Log the denied access attempt mit Duplikaterkennung
+                    add_scan_to_history({
                         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "card_uid": current_uid,
+                        "pan_hash": hash_pan(pan) if pan else None,
+                        "pan_last4": pan[-4:] if pan and len(pan) >= 4 else None,
                         "card_type": card_type,
-                        "pan": pan,
                         "status": f"Verweigert: {nfc_reason}",
                         "door_mode": door_control_manager.get_current_mode()
                     })
-                    # Limit recent_card_scans to last 100 entries
-                    if len(recent_card_scans) > 100:
-                        recent_card_scans.pop(0)
                     return
 
                 # NFC access allowed - trigger webhook ONLY if access is allowed
@@ -562,17 +629,14 @@ def handle_card_scan(card_data):
                 access_allowed, reason = opening_hours_manager.is_access_allowed(scan_type="nfc")
                 if not access_allowed:
                     logger.warning(f"🚫 Zugang verweigert für NFC-Karte PAN '{mask_pan(pan)}': {reason}")
-                    # Log the denied access attempt
-                    recent_card_scans.append({
+                    # Log the denied access attempt mit Duplikaterkennung
+                    add_scan_to_history({
                         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "card_uid": current_uid,
+                        "pan_hash": hash_pan(pan) if pan else None,
+                        "pan_last4": pan[-4:] if pan and len(pan) >= 4 else None,
                         "card_type": card_type,
-                        "pan": pan,
                         "status": f"Verweigert: {reason}"
                     })
-                    # Limit recent_card_scans to last 100 entries
-                    if len(recent_card_scans) > 100:
-                        recent_card_scans.pop(0)
                     return
 
                 try:
@@ -626,53 +690,14 @@ def handle_card_scan(card_data):
 
         # Debug-Ausgabe (PCI DSS SAFE - no full PAN in logs)
         logger.debug(f"Kartendaten: PAN={sanitize_pan_for_logging(pan)}, Ablauf={expiry_date}, Typ={card_type}")
-        
-        # PCI DSS COMPLIANT: Prüfe, ob diese Karte bereits kürzlich gescannt wurde (innerhalb der letzten 3 Scans)
-        # Dies verhindert doppelte Einträge bei schnellen Mehrfachscans
-        # Verwende pan_hash statt plaintext PAN für Vergleich
-        is_duplicate = False
-        if recent_card_scans:
-            for recent_scan in recent_card_scans[:3]:  # Prüfe nur die letzten 3 Scans
-                # Compare using hashed PAN (secure) or legacy plaintext PAN (for backward compatibility)
-                recent_pan_hash = recent_scan.get("pan_hash")
-                recent_pan_legacy = recent_scan.get("pan")  # Legacy plaintext (migration support)
 
-                is_same_card = False
-                if recent_pan_hash:
-                    # New hashed comparison (PCI DSS compliant)
-                    is_same_card = (recent_pan_hash == pan_hash)
-                elif recent_pan_legacy:
-                    # Legacy plaintext comparison (for old data during migration)
-                    is_same_card = (recent_pan_legacy == pan)
+        # Speichere Scan mit zentraler Duplikaterkennung
+        scan_added = add_scan_to_history(scan_data)
 
-                if is_same_card:
-                    # Berechne die Zeitdifferenz
-                    last_scan_time = datetime.strptime(recent_scan["timestamp"], "%Y-%m-%d %H:%M:%S")
-                    current_time = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
-                    time_diff = (current_time - last_scan_time).total_seconds()
+        # Log nur bei wichtigen Ereignissen (PCI DSS SAFE - no full PAN in logs)
+        if scan_added and card_status == "Permanent":
+            logger.info(f"✅ NFC-Karte erfolgreich erkannt: {sanitize_pan_for_logging(pan)}")
 
-                    # Wenn weniger als 5 Sekunden vergangen sind, betrachte es als Duplikat
-                    if time_diff < 5:
-                        is_duplicate = True
-                        logger.debug(f"Doppelter Scan ignoriert für PAN={sanitize_pan_for_logging(pan)} (Zeit seit letztem Scan: {time_diff}s)")
-                        break
-        
-        # Nur speichern, wenn es kein Duplikat ist - Thread-sicher
-        if not is_duplicate:
-            with cards_data_lock:
-                recent_card_scans.append(scan_data)
-                
-                # Stelle sicher, dass die Liste nicht zu groß wird
-                if len(recent_card_scans) > MAX_CARD_SCANS:
-                    recent_card_scans[:] = recent_card_scans[-MAX_CARD_SCANS:]  # In-place Slicing für bessere Performance
-            
-            # Log nur bei wichtigen Ereignissen (PCI DSS SAFE - no full PAN in logs)
-            if card_status == "Permanent":
-                logger.info(f"✅ NFC-Karte erfolgreich erkannt: {sanitize_pan_for_logging(pan)}")
-            
-            # Speichere die Kartendaten (bereits thread-sicher)
-            save_cards_data()
-        
         return True
     except Exception as e:
         logger.error(f"Fehler bei der Verarbeitung des NFC-Kartenscans: {e}")
@@ -3938,16 +3963,14 @@ def process_sparkasse_card_with_security_awareness(connection, aid, debug_respon
         access_allowed, reason = opening_hours_manager.is_access_allowed()
         if not access_allowed:
             logger.warning(f"🚫 Zugang verweigert für Sparkasse-Karte '{safe_identifier}': {reason}")
-            # Log the denied access attempt
-            recent_card_scans.append({
+            # Log the denied access attempt mit Duplikaterkennung
+            add_scan_to_history({
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "card_uid": safe_identifier,
+                "pan_hash": hash_pan(safe_identifier),
+                "pan_last4": safe_identifier[-4:] if len(safe_identifier) >= 4 else safe_identifier,
                 "card_type": "Sparkasse",
-                "pan": safe_identifier,
                 "status": f"Verweigert: {reason}"
             })
-            if len(recent_card_scans) > 100:
-                recent_card_scans.pop(0)
             return False
 
         # Pulse trotzdem auslösen, da Karte erkannt wurde
